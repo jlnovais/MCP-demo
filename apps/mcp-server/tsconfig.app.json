@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "rootDir": "./src",
+    "outDir": "../../dist/apps/mcp-server",
+    "tsBuildInfoFile": "../../dist/apps/mcp-server/.tsbuildinfo",
+    "paths": {
+      "@app/api-common": ["libs/api-common/dist"],
+      "@app/api-common/*": ["libs/api-common/dist/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

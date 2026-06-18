@@ -1,0 +1,19 @@
+{
+  "name": "@app/api-common",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/config/validate-env.js",
+  "types": "./dist/config/validate-env.d.ts",
+  "exports": {
+    "./config/validate-env": {
+      "types": "./dist/config/validate-env.d.ts",
+      "default": "./dist/config/validate-env.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json"
+  },
+  "files": [
+    "dist"
+  ]
+}

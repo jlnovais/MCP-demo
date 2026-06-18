@@ -5,13 +5,16 @@
   "description": "MCP server built with NestJS",
   "scripts": {
     "build": "nest build",
+    "prebuild": "npm run build -w @app/api-common",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main"
+    "start:prod": "node ../../dist/apps/mcp-server/main"
   },
   "dependencies": {
+    "@app/api-common": "*",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "reflect-metadata": "^0.2.2",
