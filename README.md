@@ -63,6 +63,6 @@ A placeholder MCP client. It currently prints `Hello World` and will be implemen
 
 This project uses [npm workspaces](https://docs.npmjs.com/cli/using-npm/workspaces). Dependencies are hoisted to the root `node_modules/`, and each app under `apps/` has its own `package.json`.
 
-## License
+## License 
 
 ISC
