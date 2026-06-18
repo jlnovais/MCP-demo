@@ -5,7 +5,7 @@
   "description": "MCP client (placeholder)",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.app.json",
     "start": "tsx src/index.ts",
     "start:dev": "tsx src/index.ts"
   },

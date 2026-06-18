@@ -4,7 +4,8 @@
   "private": true,
   "description": "Monorepo with MCP server (NestJS) and MCP client",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "libs/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",

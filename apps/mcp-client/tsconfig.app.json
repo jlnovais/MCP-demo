@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "declaration": false,
+    "rootDir": "./src",
+    "outDir": "../../dist/apps/mcp-client",
+    "tsBuildInfoFile": "../../dist/apps/mcp-client/.tsbuildinfo",
+    "strict": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
