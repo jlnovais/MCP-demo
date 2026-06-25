@@ -29,8 +29,7 @@ export class McpService {
       return this.sessions.get(sessionId)!;
     }
 
-    let transport!: StreamableHTTPServerTransport;
-    transport = new StreamableHTTPServerTransport({
+    const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       enableJsonResponse: true,
       onsessioninitialized: (id) => {

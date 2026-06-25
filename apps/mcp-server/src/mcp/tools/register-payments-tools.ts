@@ -53,9 +53,7 @@ export function registerPaymentsTools(
         userId: z.string().describe('User ID associated with the merchant.'),
         amount: z
           .number()
-          .describe(
-            'Amount in euros. Use 0 when specifying credits instead.',
-          ),
+          .describe('Amount in euros. Use 0 when specifying credits instead.'),
         credits: z
           .number()
           .describe(
@@ -119,7 +117,10 @@ export function registerPaymentsTools(
         status: paymentStatusSchema
           .optional()
           .describe('Filter by payment status.'),
-        reference: z.string().optional().describe('Filter by payment reference.'),
+        reference: z
+          .string()
+          .optional()
+          .describe('Filter by payment reference.'),
         customerPhone: z
           .string()
           .optional()
@@ -132,11 +133,12 @@ export function registerPaymentsTools(
           .string()
           .optional()
           .describe('Filter payments until this datetime (inclusive).'),
-        type: paymentTypeSchema
-          .optional()
-          .describe('Filter by payment type.'),
+        type: paymentTypeSchema.optional().describe('Filter by payment type.'),
         page: z.number().optional().describe('Page number (default 1).'),
-        pageSize: z.number().optional().describe('Items per page (default 10).'),
+        pageSize: z
+          .number()
+          .optional()
+          .describe('Items per page (default 10).'),
         orderBy: z
           .enum([
             'status',

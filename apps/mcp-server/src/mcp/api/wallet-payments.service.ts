@@ -108,10 +108,7 @@ export class WalletPaymentsService {
     return { data: await response.json(), pagination };
   }
 
-  async getPayment(
-    id: string,
-    checkProvider?: boolean,
-  ): Promise<unknown> {
+  async getPayment(id: string, checkProvider?: boolean): Promise<unknown> {
     const params = new URLSearchParams();
     if (checkProvider !== undefined) {
       params.set('checkProvider', String(checkProvider));
