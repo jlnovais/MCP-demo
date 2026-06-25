@@ -3,14 +3,15 @@ import { AppModule } from './app.module';
 import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Disable Nest's body parser so StreamableHTTPServerTransport can read the raw POST body on /mcp/v1.
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
   const configService = app.get(ConfigService);
 
-  const port = configService.get<number>('PORT', 3000);
-  console.log(`Server is running on port ${port}`);
-
+  const port = configService.get<number>('PORT', 4000);
+  console.log(`MCP server is running on port ${port}`);
+  console.log(`MCP endpoint: POST http://localhost:${port}/mcp/v1`);
 
   await app.listen(port);
 }
 
-bootstrap();
+void bootstrap();

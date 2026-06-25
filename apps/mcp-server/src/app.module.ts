@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv } from './config/validate-env';
+import { McpModule } from './mcp/mcp.module';
 import path from 'path';
 
 @Module({
@@ -15,6 +16,7 @@ import path from 'path';
         path.join(process.cwd(), 'apps', 'mcp-server', '.env'),
       ],
     }),
+    McpModule,
   ],
   controllers: [AppController],
   providers: [AppService],
