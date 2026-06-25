@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { WalletPaymentsService } from '../api/wallet-payments.service';
+import { jsonResult, toolError } from './tool-helpers';
 
 const paymentTypeSchema = z.enum(['MB', 'MBWAY', 'CARD']);
 
@@ -14,25 +15,6 @@ const paymentStatusSchema = z.enum([
   'UNKNOWN',
   'CANCELED',
 ]);
-
-function jsonResult(data: unknown) {
-  return {
-    content: [
-      {
-        type: 'text' as const,
-        text: JSON.stringify(data, null, 2),
-      },
-    ],
-  };
-}
-
-function toolError(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
-  return {
-    isError: true as const,
-    content: [{ type: 'text' as const, text: message }],
-  };
-}
 
 export function registerPaymentsTools(
   server: McpServer,

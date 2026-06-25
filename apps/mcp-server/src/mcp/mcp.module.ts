@@ -1,11 +1,21 @@
 import { Module } from '@nestjs/common';
 import { ApiKeyGuard } from './auth/api-key.guard';
+import { WalletApiClient } from './api/wallet-api.client';
+import { WalletExchangeRateService } from './api/wallet-exchange-rate.service';
 import { WalletPaymentsService } from './api/wallet-payments.service';
+import { WalletWalletsService } from './api/wallet-wallets.service';
 import { McpController } from './mcp.controller';
 import { McpService } from './mcp.service';
 
 @Module({
   controllers: [McpController],
-  providers: [McpService, WalletPaymentsService, ApiKeyGuard],
+  providers: [
+    McpService,
+    WalletApiClient,
+    WalletPaymentsService,
+    WalletWalletsService,
+    WalletExchangeRateService,
+    ApiKeyGuard,
+  ],
 })
 export class McpModule {}
