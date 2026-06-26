@@ -24,6 +24,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: update_wallet', args);
       try {
         const result = await walletsService.updateWallet(args);
         return jsonResult(result);
@@ -43,6 +44,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: get_wallet', args);
       try {
         const result = await walletsService.getWallet(
           args.userId,
@@ -81,6 +83,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: transfer_credits', args);
       try {
         const result = await walletsService.transferCredits(args);
         return jsonResult(result);
@@ -107,6 +110,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: reset_wallets', args);
       try {
         const result = await walletsService.resetWallets(args);
         return jsonResult(result);
@@ -149,6 +153,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: list_wallet_logs', args);
       try {
         const result = await walletsService.listWalletLogs(args);
         return jsonResult(result);
@@ -167,6 +172,7 @@ export function registerWalletsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: get_wallet_log', args);
       try {
         const result = await walletsService.getWalletLog(args.id);
         return jsonResult(result);

@@ -22,6 +22,7 @@ export function registerExchangeRateTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: upsert_exchange_rate', args);
       try {
         const result = await exchangeRateService.upsertExchangeRate(args);
         return jsonResult(result);
@@ -45,6 +46,7 @@ export function registerExchangeRateTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: get_exchange_rate', args);
       try {
         const result = await exchangeRateService.getExchangeRate(
           args.merchantId,
