@@ -67,6 +67,7 @@ export function registerPaymentsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: create_payment', args);
       try {
         const { inApp, isAuthorization, ...body } = args;
         const result = await paymentsService.createPayment(body, {
@@ -143,6 +144,7 @@ export function registerPaymentsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: list_payments', args);
       try {
         const result = await paymentsService.listPayments(args);
         return jsonResult(result);
@@ -167,6 +169,7 @@ export function registerPaymentsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: get_payment', args);
       try {
         const result = await paymentsService.getPayment(
           args.id,
@@ -189,6 +192,7 @@ export function registerPaymentsTools(
       },
     },
     async (args) => {
+      console.log('[MCP] tools/call: cancel_payment', args);
       try {
         const result = await paymentsService.cancelPayment(args.id);
         return jsonResult(result);

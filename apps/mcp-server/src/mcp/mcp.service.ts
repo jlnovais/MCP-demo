@@ -7,6 +7,7 @@ import { WalletExchangeRateService } from './api/wallet-exchange-rate.service';
 import { WalletPaymentsService } from './api/wallet-payments.service';
 import { WalletWalletsService } from './api/wallet-wallets.service';
 import { registerExchangeRateTools } from './tools/register-exchange-rate-tools';
+import { registerPaymentsPrompts } from './tools/register-payments-prompts';
 import { registerPaymentsTools } from './tools/register-payments-tools';
 import { registerWalletsTools } from './tools/register-wallets-tools';
 
@@ -25,6 +26,7 @@ export class McpService {
       name: 'mindshaker-wallet-mcp',
       version: '1.0.0',
     });
+    registerPaymentsPrompts(server);
     registerPaymentsTools(server, this.paymentsService);
     registerWalletsTools(server, this.walletsService);
     registerExchangeRateTools(server, this.exchangeRateService);
