@@ -6,6 +6,7 @@ import { WalletPaymentsService } from './api/wallet-payments.service';
 import { WalletWalletsService } from './api/wallet-wallets.service';
 import { McpController } from './mcp.controller';
 import { McpService } from './mcp.service';
+import { UtilitiesDatesService } from './utilities/utilities-dates.service';
 
 @Module({
   controllers: [McpController],
@@ -16,6 +17,7 @@ import { McpService } from './mcp.service';
     WalletWalletsService,
     WalletExchangeRateService,
     ApiKeyGuard,
+    UtilitiesDatesService,
   ],
 })
 export class McpModule {}
