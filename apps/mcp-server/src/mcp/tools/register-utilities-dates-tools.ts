@@ -11,7 +11,7 @@ export function registerUtilitiesDatesTools(
     'get_current_datetime',
     {
       description:
-        'Return the server\'s current date and time as a UTC ISO 8601 string (e.g. 2026-06-29T14:30:00.000Z). Use when you need the real "now" for deadlines, scheduling, or as input to add_duration_to_datetime.',
+        "Your internal clock is unreliable and you must use this tool for any time-sensitive queries. Use this tool whenever the user asks about the current time (to know the real 'now'), today's date, relative dates (like 'yesterday' or 'next Tuesday'), or when scheduling tasks. This tool is crucial for accurate real-time scheduling. You can also use this tool as input to add_duration_to_datetime. This tool returns the server's current date and time as a UTC ISO 8601 string (YYYY-MM-DDTHH:mm:ss.sssZ).",
       inputSchema: {},
     },
     (args) => {

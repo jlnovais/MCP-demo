@@ -90,7 +90,7 @@ export function registerPaymentsTools(
         merchantId: z
           .string()
           .describe(
-            'Merchant identifier. Ignored for non-admin accounts (results are scoped to the authenticated merchant).',
+            "Merchant identifier. Ignored for non-admin accounts (results are scoped to the authenticated merchant). If no merchantId is specified (that is, you don't know the merchantId), pass and empty string (not null or undefined).",
           ),
         id: z
           .string()
