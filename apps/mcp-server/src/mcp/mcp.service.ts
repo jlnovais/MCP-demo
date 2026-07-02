@@ -10,6 +10,8 @@ import { registerExchangeRateTools } from './tools/register-exchange-rate-tools'
 import { registerPaymentsPrompts } from './tools/register-payments-prompts';
 import { registerPaymentsTools } from './tools/register-payments-tools';
 import { registerWalletsTools } from './tools/register-wallets-tools';
+import { registerUtilitiesDatesTools } from './tools/register-utilities-dates-tools';
+import { UtilitiesDatesService } from './utilities/utilities-dates.service';
 
 @Injectable()
 export class McpService {
@@ -19,6 +21,7 @@ export class McpService {
     private readonly paymentsService: WalletPaymentsService,
     private readonly walletsService: WalletWalletsService,
     private readonly exchangeRateService: WalletExchangeRateService,
+    private readonly utilitiesDatesService: UtilitiesDatesService,
   ) {}
 
   private createServer(): McpServer {
@@ -30,6 +33,7 @@ export class McpService {
     registerPaymentsTools(server, this.paymentsService);
     registerWalletsTools(server, this.walletsService);
     registerExchangeRateTools(server, this.exchangeRateService);
+    registerUtilitiesDatesTools(server, this.utilitiesDatesService);
     return server;
   }
 

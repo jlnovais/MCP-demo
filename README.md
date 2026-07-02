@@ -1,6 +1,6 @@
 # MCP Demo
 
-A monorepo for experimenting with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). It exposes the MindShaker Wallet API as MCP tools through a NestJS server, plus a placeholder MCP client.
+A monorepo for experimenting with the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). It exposes the MindShaker Wallet API as MCP tools through a NestJS server, plus an interactive Claude CLI client that connects to the server and calls those tools.
 
 ## Project structure
 
@@ -8,7 +8,7 @@ A monorepo for experimenting with the [Model Context Protocol (MCP)](https://mod
 MCP-demo/
 ├── apps/
 │   ├── mcp-server/    # NestJS app — MCP server (Wallet API tools)
-│   └── mcp-client/    # MCP client (placeholder)
+│   └── mcp-client/    # Interactive Claude CLI client (MCP tool support)
 ├── libs/
 │   └── api-common/    # Shared config utilities
 ├── docs/              # Testing and integration guides
@@ -64,7 +64,7 @@ Run these from the repository root:
 | --- | --- |
 | `npm run start:server` | Start the NestJS MCP server |
 | `npm run start:server:dev` | Start the server with hot reload |
-| `npm run start:client` | Run the MCP client placeholder |
+| `npm run start:client` | Run the interactive Claude CLI client |
 | `npm run build` | Build all workspaces |
 | `npm run lint` | Lint TypeScript across apps and libs |
 | `npm run format` | Format TypeScript with Prettier |
@@ -109,9 +109,31 @@ See [docs/testing-mcp-endpoint.md](docs/testing-mcp-endpoint.md) for curl exampl
 
 ### `@mcp-demo/mcp-client`
 
-A placeholder MCP client. It currently prints `Hello World` and will be implemented in a future iteration.
+An interactive command-line chat client that talks to [Claude](https://www.anthropic.com/) and exposes the MCP server's tools to the model. It connects to the MCP server over streamable HTTP, discovers the available tools, and lets Claude call them automatically while you chat in the terminal.
 
 - **Source:** `apps/mcp-client/src/`
+- **Transport:** Streamable HTTP to the MCP server (`MCP_SERVER_URL`, default `http://127.0.0.1:4000/mcp/v1`)
+
+Configure environment variables:
+
+```bash
+cp apps/mcp-client/.env.template apps/mcp-client/.env
+```
+
+| Variable | Description |
+| --- | --- |
+| `ANTHROPIC_API_KEY` | **Required.** Anthropic API key ([console](https://console.anthropic.com/)) |
+| `MCP_SERVER_URL` | MCP server endpoint (default `http://127.0.0.1:4000/mcp/v1`) |
+| `MCP_SERVER_API_KEY` | Must match the MCP server's `MCP_SERVER_API_KEY` (sent as `x-api-key`) |
+| `CLAUDE_MODEL` | Claude model to use (default `claude-sonnet-5`) |
+
+With the MCP server running, start the client:
+
+```bash
+npm run start:client
+```
+
+Type a message and press Enter to chat. Type `exit` or press Ctrl+C to quit.
 
 ## Workspaces
 

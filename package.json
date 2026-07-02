@@ -8,12 +8,15 @@
     "libs/*"
   ],
   "scripts": {
-    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
-    "lint": "eslint \"{apps,libs}/**/*.ts\" --fix",
+    "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\" \"test/**/*.ts\"",
+    "lint": "eslint \"{apps,libs,test}/**/*.ts\" --fix",
     "build": "npm run build --workspaces --if-present",
     "start:server": "npm run start -w @mcp-demo/mcp-server",
     "start:server:dev": "npm run start:dev -w @mcp-demo/mcp-server",
-    "start:client": "npm run start -w @mcp-demo/mcp-client"
+    "start:client": "npm run start -w @mcp-demo/mcp-client",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -21,11 +24,39 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.18.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/jest": "^30.0.0",
     "eslint": "^10.3.0",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.6.0",
+    "jest": "^30.4.2",
     "prettier": "^3.8.3",
+    "ts-jest": "^29.4.9",
     "typescript-eslint": "^8.20.0"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": ".",
+    "moduleNameMapper": {
+      "^@app/api-common/(.*)$": "<rootDir>/libs/api-common/src/$1",
+      "^@app/api-common$": "<rootDir>/libs/api-common/src"
+    },
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "./coverage",
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/test/"
+    ]
   }
 }
