@@ -9,15 +9,19 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "node ../../dist/apps/mcp-server/main"
+    "start:prod": "node ../../dist/apps/mcp-server/main",
+    "ingest:knowledge": "npm run build && node ../../dist/apps/mcp-server/mcp/knowledge/ingest.js"
   },
   "dependencies": {
     "@app/api-common": "*",
+    "@lancedb/lancedb": "^0.31.0",
+    "@llamaindex/voyage-ai": "^1.0.28",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
+    "llamaindex": "^0.12.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^4.4.3"

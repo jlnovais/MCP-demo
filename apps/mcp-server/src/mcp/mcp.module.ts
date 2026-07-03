@@ -4,6 +4,7 @@ import { WalletApiClient } from './api/wallet-api.client';
 import { WalletExchangeRateService } from './api/wallet-exchange-rate.service';
 import { WalletPaymentsService } from './api/wallet-payments.service';
 import { WalletWalletsService } from './api/wallet-wallets.service';
+import { KnowledgeService } from './knowledge/knowledge.service';
 import { McpController } from './mcp.controller';
 import { McpService } from './mcp.service';
 import { UtilitiesDatesService } from './utilities/utilities-dates.service';
@@ -18,6 +19,7 @@ import { UtilitiesDatesService } from './utilities/utilities-dates.service';
     WalletExchangeRateService,
     ApiKeyGuard,
     UtilitiesDatesService,
+    KnowledgeService,
   ],
 })
 export class McpModule {}
