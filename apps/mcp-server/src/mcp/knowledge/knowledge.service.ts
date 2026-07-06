@@ -20,6 +20,8 @@ interface KnowledgeRow extends Record<string, unknown> {
   chunkIndex: number;
 }
 
+type KnowledgeSearchRow = KnowledgeRow & { _distance?: number };
+
 const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt)$/i;
 const DEFAULT_TOP_K = 4;
 const DEFAULT_MODEL = 'voyage-3.5';
@@ -90,7 +92,10 @@ export class KnowledgeService {
       throw new Error('Failed to compute an embedding for the query.');
     }
 
-    const rows = await table.vectorSearch(queryVector).limit(topK).toArray();
+    const rows = (await table
+      .vectorSearch(queryVector)
+      .limit(topK)
+      .toArray()) as KnowledgeSearchRow[];
 
     return rows.map((row) => ({
       text: String(row.text ?? ''),
