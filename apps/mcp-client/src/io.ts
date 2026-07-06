@@ -18,7 +18,9 @@ export function printStartupBanner({
 }: StartupBannerOptions): void {
   console.log(`Connected to MCP server (${tools.length} tools available).`);
   console.log(`Claude model: ${model}`);
-  console.log(`Api-key used: ...${apiKey.substring(apiKey.length - 10)}`);
+  console.log(
+    `Api-key used: ${apiKey ? `${apiKey.substring(0, 12)}...${apiKey.substring(apiKey.length - 10)}` : ' *** no key defined in environment variable ANTHROPIC_API_KEY ***'}`,
+  );
   console.log('--------------------------------');
   console.log('Available tools:');
 

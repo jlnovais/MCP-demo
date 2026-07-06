@@ -42,6 +42,7 @@ cp apps/mcp-server/.env.template apps/mcp-server/.env
 | `MCP_SERVER_API_KEY` | Key required to call the MCP endpoint (`x-api-key` header) |
 | `WALLET_API_BASE_URL` | Upstream Wallet API base URL (default `http://localhost:3000`) |
 | `WALLET_API_KEY` | Wallet API key sent as `x-wallet-api-key` when tools call the upstream API |
+| `VOYAGE_API_KEY` | Voyage AI key for the RAG `search_knowledge_base` tool (see [docs/rag-knowledge-base.md](docs/rag-knowledge-base.md)) |
 
 Start the MCP server:
 
@@ -102,8 +103,11 @@ A [NestJS](https://nestjs.com/) application that exposes the MindShaker Wallet A
 | | `get_wallet_log` | `GET /api/wallet/logs/{id}` |
 | Exchange rate | `upsert_exchange_rate` | `POST /api/exchange-rate` |
 | | `get_exchange_rate` | `GET /api/exchange-rate/{merchantId}` |
+| Knowledge base | `search_knowledge_base` | Semantic search over local docs (RAG) |
 
 Tool registration lives under `apps/mcp-server/src/mcp/tools/`. Each category has a matching service in `apps/mcp-server/src/mcp/api/`.
+
+The `search_knowledge_base` tool adds Retrieval-Augmented Generation (RAG) over your own documents using LlamaIndex + Voyage AI embeddings + a local LanceDB vector store. Configure `VOYAGE_API_KEY`, add documents under `apps/mcp-server/knowledge/`, then build the index with `npm run ingest:knowledge -w @mcp-demo/mcp-server`. See [docs/rag-knowledge-base.md](docs/rag-knowledge-base.md) for full setup.
 
 See [docs/testing-mcp-endpoint.md](docs/testing-mcp-endpoint.md) for curl examples and [docs/claude-desktop.md](docs/claude-desktop.md) for Claude Desktop integration.
 
