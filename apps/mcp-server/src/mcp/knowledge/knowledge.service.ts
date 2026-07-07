@@ -144,16 +144,22 @@ export class KnowledgeService {
         .filter((text) => text.length > 0);
 
       const vectors = await this.embedModel.getTextEmbeddings(chunks);
+      this.logger.log(
+        `Embeddings for ${fileName} (${chunks.length} chunk(s)):`,
+      );
       chunks.forEach((text, index) => {
+        const vector = vectors[index];
         rows.push({
-          vector: vectors[index],
+          vector,
           text,
           source: fileName,
           chunkIndex: index,
         });
+        const textPreview = text.length > 80 ? `${text.slice(0, 80)}...` : text;
+        this.logger.log(
+          `  [${index}] dim=${vector.length} | ${JSON.stringify(vector)} | "${textPreview}"`,
+        );
       });
-
-      this.logger.log(`Chunked ${fileName} into ${chunks.length} pieces.`);
     }
 
     if (rows.length === 0) {
