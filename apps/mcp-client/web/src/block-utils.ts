@@ -7,10 +7,7 @@ function appendToLastBlock(
 ): MessageBlock[] {
   const last = blocks.at(-1);
   if (last?.type === blockType) {
-    return [
-      ...blocks.slice(0, -1),
-      { ...last, text: last.text + delta },
-    ];
+    return [...blocks.slice(0, -1), { ...last, text: last.text + delta }];
   }
   return [...blocks, { type: blockType, text: delta }];
 }

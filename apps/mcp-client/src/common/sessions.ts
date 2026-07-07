@@ -1,9 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages/messages';
-import {
-  betaMessagesToDisplay,
-  deriveSessionTitle,
-} from './chat-engine.js';
+import { betaMessagesToDisplay, deriveSessionTitle } from './chat-engine.js';
 import type { SessionDetail, SessionSummary } from './types.js';
 
 type SessionRecord = {

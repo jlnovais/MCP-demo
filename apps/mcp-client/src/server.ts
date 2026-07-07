@@ -8,6 +8,19 @@ import { loadEnv, requireEnv } from './common/env.js';
 import { SessionStore } from './common/sessions.js';
 import type { ChatStreamEvent, ServerConfig } from './common/types.js';
 
+function parseChatMessage(body: unknown): string | undefined {
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    'message' in body &&
+    typeof body.message === 'string'
+  ) {
+    const trimmed = body.message.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  return undefined;
+}
+
 loadEnv();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -95,8 +108,8 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
     return;
   }
 
-  const message = typeof req.body?.message === 'string' ? req.body.message : '';
-  if (!message.trim()) {
+  const message = parseChatMessage(req.body);
+  if (!message) {
     res.status(400).json({ error: 'Message is required' });
     return;
   }
