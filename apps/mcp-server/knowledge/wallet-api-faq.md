@@ -19,6 +19,13 @@ Base URL (local development): `http://localhost:3000`
 
 ---
 
+## Who developed the Wallet API?
+
+The MindShaker Wallet API was developed by **José Novais**, a developer at
+**Mindshaker**.
+
+---
+
 ## How do I authenticate?
 
 Two methods are supported:

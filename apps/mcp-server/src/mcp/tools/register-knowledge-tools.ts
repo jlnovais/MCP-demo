@@ -13,9 +13,12 @@ export function registerKnowledgeTools(
       description:
         'Search the wallet knowledge base for relevant documentation using semantic (vector) search. ' +
         'Use this whenever the user asks about concepts, policies, definitions, limits, or how-to guidance ' +
-        '(for example "what are credits?", "how do transfers work?", "what is the refund policy?") that is ' +
-        'not available through the structured wallet/payment tools. Returns the most relevant documentation ' +
-        'snippets, each with its source file. Ground your answer in the returned snippets and cite the source.',
+        '(for example "what are credits?", "how do transfers work?", "what is the refund policy?") about Wallet API that is ' +
+        'not available through the structured wallet/payment tools. ' +
+        'You can also use this tool to search for information about Mindshaker (the company that developed the Wallet API), like the mission, values, clients, client testimonials, and the team (names, roles and descriptions). ' +
+        'The information about Mindshaker is not available through the structured wallet/payment tools. ' +
+        'You can also use this tool search for information about the team member of Mindshaker who developed the Wallet API. ' +
+        'Returns the most relevant documentation snippets, each with its source file. Ground your answer in the returned snippets and cite the source.',
       inputSchema: {
         query: z
           .string()
