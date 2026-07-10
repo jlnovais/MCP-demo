@@ -129,6 +129,8 @@ export class KnowledgeService {
 
     const rows: KnowledgeRow[] = [];
     for (const fileName of files) {
+      this.logger.log(`Processing embedding for file: ${fileName}`);
+
       const filePath = path.join(directory, fileName);
       const content = (await fs.readFile(filePath, 'utf-8')).trim();
       if (!content) {
@@ -144,9 +146,7 @@ export class KnowledgeService {
         .filter((text) => text.length > 0);
 
       const vectors = await this.embedModel.getTextEmbeddings(chunks);
-      this.logger.log(
-        `Embeddings for ${fileName} (${chunks.length} chunk(s)):`,
-      );
+      this.logger.log(`Computed ${chunks.length} embeddings for ${fileName}`);
       chunks.forEach((text, index) => {
         const vector = vectors[index];
         rows.push({
@@ -156,9 +156,7 @@ export class KnowledgeService {
           chunkIndex: index,
         });
         const textPreview = text.length > 80 ? `${text.slice(0, 80)}...` : text;
-        this.logger.log(
-          `  [${index}] dim=${vector.length} | ${JSON.stringify(vector)} | "${textPreview}"`,
-        );
+        this.logger.log(`  [${index}] chunk: "${textPreview}"`);
       });
     }
 

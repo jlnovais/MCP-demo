@@ -1,10 +1,8 @@
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
-import type {
-  BetaMessageParam,
-  BetaToolResultBlockParam,
-} from '@anthropic-ai/sdk/resources/beta/messages/messages';
-import type { AppContext } from './bootstrap.js';
+import type { AppContext } from './common/types.js';
+import { streamChatTurn } from './common/chat-engine.js';
+import type { BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { color } from './io.js';
 
 const USER_COLOR = 34;
@@ -14,49 +12,12 @@ const ERROR_COLOR = 31;
 const ERROR_DESCRIPTION_COLOR = 35;
 const TOOL_COLOR = 32;
 const THINKING_COLOR = 35;
-const TOOL_RESULT_MAX_CHARS = 1000;
 const STYLE_ITALIC = 3;
 const STYLE_BOLD = 1;
-//const STYLE_UNDERLINE = 4;
-
-function stringifyToolResultContent(
-  content: BetaToolResultBlockParam['content'],
-): string {
-  if (content == null) {
-    return '';
-  }
-  if (typeof content === 'string') {
-    return content;
-  }
-  return content
-    .map((block) => (block.type === 'text' ? block.text : `[${block.type}]`))
-    .join('');
-}
-
-function printToolResults(message: BetaMessageParam): void {
-  if (message.role !== 'user' || typeof message.content === 'string') {
-    return;
-  }
-  for (const block of message.content) {
-    if (block.type !== 'tool_result') {
-      continue;
-    }
-    let text = stringifyToolResultContent(block.content);
-    if (text.length > TOOL_RESULT_MAX_CHARS) {
-      text = `${text.slice(0, TOOL_RESULT_MAX_CHARS)}… (truncated)`;
-    }
-    const label = block.is_error ? '[tool error]' : '[tool result]';
-    process.stdout.write(color(`${label} ${text}\n`, TOOL_COLOR));
-  }
-}
 
 export async function runChat({
-  anthropic,
-  model,
-  maxTokens,
-  claudeTools,
   transport,
-  thinkingBudget,
+  ...ctx
 }: AppContext): Promise<void> {
   const rl = createInterface({ input, output });
   const messages: BetaMessageParam[] = [];
@@ -90,74 +51,60 @@ export async function runChat({
         continue;
       }
 
-      messages.push({ role: 'user', content: userInput });
-
-      const runner = anthropic.beta.messages.toolRunner({
-        model,
-        max_tokens: maxTokens,
-        messages,
-        tools: claudeTools,
-        stream: true,
-        ...(thinkingBudget
-          ? { thinking: { type: 'enabled', budget_tokens: thinkingBudget } }
-          : {}),
-      });
+      let thinkingStarted = false;
+      let textStarted = false;
 
       try {
-        let printedMessages = runner.params.messages.length;
-        for await (const stream of runner) {
-          const currentMessages = runner.params.messages;
-          for (let i = printedMessages; i < currentMessages.length; i++) {
-            printToolResults(currentMessages[i]);
-          }
-          printedMessages = currentMessages.length;
-
-          let started = false;
-          let thinkingStarted = false;
-          stream.on('thinking', (delta) => {
-            if (!thinkingStarted) {
-              process.stdout.write(
-                color('\n[thinking] ', THINKING_COLOR, STYLE_ITALIC),
-              );
-              thinkingStarted = true;
-            }
-            process.stdout.write(color(delta, THINKING_COLOR, STYLE_ITALIC));
-          });
-          stream.on('text', (delta) => {
-            if (!started) {
-              if (thinkingStarted) {
-                process.stdout.write('\n');
+        await streamChatTurn(ctx, messages, userInput, (event) => {
+          switch (event.type) {
+            case 'thinking':
+              if (!thinkingStarted) {
+                process.stdout.write(
+                  color('\n[thinking] ', THINKING_COLOR, STYLE_ITALIC),
+                );
+                thinkingStarted = true;
               }
               process.stdout.write(
-                color('\nClaude: ', CLAUDE_NAME_COLOR, STYLE_BOLD),
+                color(event.delta, THINKING_COLOR, STYLE_ITALIC),
               );
-              started = true;
-            }
-            process.stdout.write(color(delta, RESPONSE_COLOR));
-          });
-          stream.on('contentBlock', (block) => {
-            if (block.type === 'tool_use') {
-              const args = JSON.stringify(block.input);
+              break;
+            case 'text':
+              if (!textStarted) {
+                if (thinkingStarted) {
+                  process.stdout.write('\n');
+                }
+                process.stdout.write(
+                  color('\nClaude: ', CLAUDE_NAME_COLOR, STYLE_BOLD),
+                );
+                textStarted = true;
+              }
+              process.stdout.write(color(event.delta, RESPONSE_COLOR));
+              break;
+            case 'tool_use':
               process.stdout.write(
                 color(
-                  `\n[calling tool: ${block.name} ${args}]\n`,
+                  `\n[calling tool: ${event.name} ${JSON.stringify(event.input)}]\n`,
                   TOOL_COLOR,
                   STYLE_ITALIC,
                 ),
               );
+              break;
+            case 'tool_result': {
+              const label = event.isError ? '[tool error]' : '[tool result]';
+              process.stdout.write(
+                color(`${label} ${event.text}\n`, TOOL_COLOR),
+              );
+              break;
             }
-          });
-          await stream.done();
-          if (started) {
-            process.stdout.write('\n\n');
+            case 'done':
+              if (textStarted) {
+                process.stdout.write('\n\n');
+              }
+              break;
+            case 'error':
+              break;
           }
-        }
-        const finalMessages = runner.params.messages;
-        for (let i = printedMessages; i < finalMessages.length; i++) {
-          printToolResults(finalMessages[i]);
-        }
-        messages.length = 0;
-        messages.push(...finalMessages);
+        });
       } catch (error) {
         messages.pop();
         const message = error instanceof Error ? error.message : String(error);

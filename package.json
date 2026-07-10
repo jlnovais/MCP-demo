@@ -14,6 +14,9 @@
     "start:server": "npm run start -w @mcp-demo/mcp-server",
     "start:server:dev": "npm run start:dev -w @mcp-demo/mcp-server",
     "start:client": "npm run start -w @mcp-demo/mcp-client",
+    "start:client:web": "npm run start:web -w @mcp-demo/mcp-client",
+    "start:client:web:prod": "npm run start:web:prod -w @mcp-demo/mcp-client",
+    "build:client:web": "npm run build:all -w @mcp-demo/mcp-client",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage"

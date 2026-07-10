@@ -12,8 +12,7 @@ export function loadEnv(): void {
 export function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
   if (!value) {
-    console.error(`Missing required environment variable: ${name}`);
-    process.exit(1);
+    throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
 }
