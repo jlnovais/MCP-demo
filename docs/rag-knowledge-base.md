@@ -198,6 +198,7 @@ Chunking and defaults live in `knowledge.service.ts`:
 
 ## Related docs
 
+- [Server knowledge ingestion](./server-knowledge-ingestion.md) — add docs on production server, restarts, troubleshooting
 - [Testing the MCP endpoint](./testing-mcp-endpoint.md) — curl-based verification
 - [Adding the MCP server to Claude Desktop](./claude-desktop.md) — connect a client
 - [Voyage AI docs](https://docs.voyageai.com/) — embedding models and limits

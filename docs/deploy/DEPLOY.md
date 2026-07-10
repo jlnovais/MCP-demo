@@ -304,6 +304,8 @@ node dist/apps/mcp-server/mcp/knowledge/ingest.js
 
 This reads `knowledge/` under the deploy root and writes to `data/lancedb/` (or the path set by `LANCEDB_PATH` in `.env`). Requires a valid `VOYAGE_API_KEY` in `.env`.
 
+After ingestion, restart **both** `mcp-server` and `mcp-client` (see [server-knowledge-ingestion.md](../server-knowledge-ingestion.md)).
+
 Alternatively, upload a pre-built `data/lancedb/` folder from your PC instead of running ingestion on the server.
 
 ### Health checks
@@ -357,7 +359,7 @@ Point nginx at these local ports (HTTPS in production). The MCP Streamable HTTP 
 3. Upload staging folders to the server (overwrite `dist`, `apps/`, `libs/` as applicable, `package.json`, `package-lock.json`)  
 4. On server: `npm ci --omit=dev --workspace=...` when dependencies changed  
 5. `pm2 restart mcp-server` and `pm2 restart mcp-client`  
-6. Re-run knowledge ingestion when `knowledge/` docs changed  
+6. Re-run knowledge ingestion when `knowledge/` docs changed (see [server-knowledge-ingestion.md](../server-knowledge-ingestion.md))  
 7. Do not overwrite production `.env` unless intentional (the staging script warns when `.env` was copied)  
 
 ## 10. Troubleshooting
@@ -458,5 +460,6 @@ Run PM2 as the same user; avoid `sudo npm install`, which creates root-owned `no
 
 - [README.md](../../README.md) — apps, ports, env variables  
 - [rag-knowledge-base.md](../rag-knowledge-base.md) — RAG setup and `search_knowledge_base`  
+- [server-knowledge-ingestion.md](../server-knowledge-ingestion.md) — add docs on the server, post-ingest restarts, troubleshooting  
 - [testing-mcp-endpoint.md](../testing-mcp-endpoint.md) — curl examples for `POST /mcp/v1`  
 - `apps/mcp-server/.env.template`, `apps/mcp-client/.env.template`
