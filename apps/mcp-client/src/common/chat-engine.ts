@@ -14,7 +14,12 @@ const TOOL_RESULT_MAX_CHARS = 1000;
 
 type ChatEngineContext = Pick<
   AppContext,
-  'anthropic' | 'model' | 'maxTokens' | 'claudeTools' | 'thinkingBudget'
+  | 'anthropic'
+  | 'model'
+  | 'maxTokens'
+  | 'claudeTools'
+  | 'thinkingBudget'
+  | 'samplingParams'
 >;
 
 function stringifyToolResultContent(
@@ -64,15 +69,19 @@ export async function streamChatTurn(
 ): Promise<void> {
   messages.push({ role: 'user', content: userInput });
 
+  const thinkingBudget = ctx.thinkingBudget;
+  const thinkingConfig =
+    thinkingBudget !== undefined && thinkingBudget > 0
+      ? { type: 'enabled' as const, budget_tokens: thinkingBudget }
+      : undefined;
+
   const runner = ctx.anthropic.beta.messages.toolRunner({
     model: ctx.model,
     max_tokens: ctx.maxTokens,
     messages,
     tools: ctx.claudeTools,
     stream: true,
-    ...(ctx.thinkingBudget
-      ? { thinking: { type: 'enabled', budget_tokens: ctx.thinkingBudget } }
-      : {}),
+    ...(thinkingConfig ? { thinking: thinkingConfig } : ctx.samplingParams),
   });
 
   let printedMessages = runner.params.messages.length;
