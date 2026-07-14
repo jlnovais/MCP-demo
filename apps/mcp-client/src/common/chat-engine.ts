@@ -3,6 +3,7 @@ import type {
   BetaToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { randomUUID } from 'node:crypto';
+import { OUT_OF_SCOPE_LABEL, REFUSAL_MESSAGE } from './system-prompt.js';
 import type {
   AppContext,
   ChatStreamEvent,
@@ -11,6 +12,38 @@ import type {
 } from './types.js';
 
 const TOOL_RESULT_MAX_CHARS = 1000;
+const CLASSIFIER_MAX_TOKENS = 16;
+
+// Phrases (English + Portuguese) an assistant uses when asking the user to
+// supply input. When the previous assistant turn ends with a question or one of
+// these cues, the next user message is treated as a continuation of an in-scope
+// task and the scope classifier is skipped for that turn.
+const INPUT_REQUEST_CUES = [
+  // English
+  'please provide',
+  'please enter',
+  'please specify',
+  'what is the',
+  'which ',
+  'can you tell me',
+  'could you provide',
+  'let me know',
+  // Portuguese
+  'por favor forneça',
+  'por favor indique',
+  'por favor introduza',
+  'pode indicar',
+  'pode dizer',
+  'poderia indicar',
+  'poderia fornecer',
+  'qual é o',
+  'qual é a',
+  'qual o ',
+  'qual a ',
+  'quais são',
+  'diga-me',
+  'indique',
+];
 
 type ChatEngineContext = Pick<
   AppContext,
@@ -20,6 +53,10 @@ type ChatEngineContext = Pick<
   | 'claudeTools'
   | 'thinkingBudget'
   | 'samplingParams'
+  | 'systemPrompt'
+  | 'classifierPrompt'
+  | 'classifierModel'
+  | 'classifierEnabled'
 >;
 
 function stringifyToolResultContent(
@@ -61,12 +98,87 @@ function* toolResultEvents(
   }
 }
 
+function lastAssistantText(messages: BetaMessageParam[]): string | undefined {
+  const last = messages.at(-1);
+  if (!last || last.role !== 'assistant') {
+    return undefined;
+  }
+  if (typeof last.content === 'string') {
+    return last.content.trim();
+  }
+  return last.content
+    .map((block) => (block.type === 'text' ? block.text : ''))
+    .join('')
+    .trim();
+}
+
+function assistantAwaitingReply(messages: BetaMessageParam[]): boolean {
+  const text = lastAssistantText(messages);
+  if (!text) {
+    return false;
+  }
+  if (text.endsWith('?')) {
+    return true;
+  }
+  const lower = text.toLowerCase();
+  return INPUT_REQUEST_CUES.some((cue) => lower.includes(cue));
+}
+
+async function isOutOfScope(
+  ctx: ChatEngineContext,
+  userInput: string,
+): Promise<boolean> {
+  try {
+    const response = await ctx.anthropic.messages.create({
+      model: ctx.classifierModel,
+      max_tokens: CLASSIFIER_MAX_TOKENS,
+      temperature: 0,
+      system: ctx.classifierPrompt,
+      messages: [{ role: 'user', content: userInput }],
+    });
+
+    const verdict = response.content
+      .map((block) => (block.type === 'text' ? block.text : ''))
+      .join('')
+      .toUpperCase();
+
+    return verdict.includes(OUT_OF_SCOPE_LABEL);
+  } catch (error) {
+    // Fail open: if the classifier is unavailable, fall through to the main
+    // turn, which still enforces scope via the system prompt.
+    console.warn(
+      `Scope classifier failed, allowing request through: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
 export async function streamChatTurn(
   ctx: ChatEngineContext,
   messages: BetaMessageParam[],
   userInput: string,
   onEvent: (event: ChatStreamEvent) => void,
 ): Promise<void> {
+  // Skip the classifier when the assistant just asked the user for input; the
+  // reply (e.g. a bare ID or "yes") lacks standalone context and would be
+  // misjudged as out of scope. The main turn's system prompt still enforces
+  // scope for these follow-ups.
+  const skipClassifier = assistantAwaitingReply(messages);
+
+  if (
+    ctx.classifierEnabled &&
+    !skipClassifier &&
+    (await isOutOfScope(ctx, userInput))
+  ) {
+    messages.push({ role: 'user', content: userInput });
+    messages.push({ role: 'assistant', content: REFUSAL_MESSAGE });
+    onEvent({ type: 'text', delta: REFUSAL_MESSAGE });
+    onEvent({ type: 'done' });
+    return;
+  }
+
   messages.push({ role: 'user', content: userInput });
 
   const thinkingBudget = ctx.thinkingBudget;
@@ -78,6 +190,7 @@ export async function streamChatTurn(
   const runner = ctx.anthropic.beta.messages.toolRunner({
     model: ctx.model,
     max_tokens: ctx.maxTokens,
+    system: ctx.systemPrompt,
     messages,
     tools: ctx.claudeTools,
     stream: true,

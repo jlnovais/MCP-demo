@@ -10,6 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client';
 import { resolveClaudeSamplingParams } from './claude-sampling.js';
 import { connectMcpClient } from './connection.js';
 import { requireEnv } from './env.js';
+import { buildClassifierPrompt, buildSystemPrompt } from './system-prompt.js';
 import type { AppContext } from './types.js';
 
 const DEFAULT_MAX_TOKENS = 4096;
@@ -67,6 +68,13 @@ export async function bootstrap(
     claudeTools = mcpTools(tools, mcpClient as MCPClientLike);
   }
 
+  const systemPrompt = buildSystemPrompt(tools);
+  const classifierPrompt = buildClassifierPrompt(tools);
+  const classifierModel = process.env.CLAUDE_CLASSIFIER_MODEL?.trim() || model;
+  const classifierEnabled =
+    (process.env.SCOPE_CLASSIFIER_ENABLED ?? 'true').trim().toLowerCase() !==
+    'false';
+
   return {
     anthropic,
     model,
@@ -76,6 +84,10 @@ export async function bootstrap(
     thinkingBudget,
     samplingParams,
     tools,
+    systemPrompt,
+    classifierPrompt,
+    classifierModel,
+    classifierEnabled,
     mcpConnected,
   };
 }

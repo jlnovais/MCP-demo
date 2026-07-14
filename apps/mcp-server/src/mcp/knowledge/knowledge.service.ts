@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import * as lancedb from '@lancedb/lancedb';
 import { VoyageAIEmbedding } from '@llamaindex/voyage-ai';
 import { Document, SentenceSplitter } from 'llamaindex';
+import { PDFParse } from 'pdf-parse';
 
 export interface KnowledgeSearchHit {
   text: string;
@@ -22,7 +23,8 @@ interface KnowledgeRow extends Record<string, unknown> {
 
 type KnowledgeSearchRow = KnowledgeRow & { _distance?: number };
 
-const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt)$/i;
+const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt|pdf)$/i;
+const PDF_EXTENSION = /\.pdf$/i;
 const DEFAULT_TOP_K = 4;
 const DEFAULT_MODEL = 'voyage-3.5';
 const DEFAULT_TABLE = 'knowledge';
@@ -105,6 +107,27 @@ export class KnowledgeService {
     }));
   }
 
+  private async extractText(filePath: string): Promise<string> {
+    if (PDF_EXTENSION.test(filePath)) {
+      const buffer = await fs.readFile(filePath);
+      const parser = new PDFParse({ data: new Uint8Array(buffer) });
+      try {
+        // pageJoiner: '' suppresses the default "-- page X of Y --" markers so
+        // they don't leak into the embedded text.
+        const result = await parser.getText({ pageJoiner: '' });
+        // PDF extraction tends to produce stray line breaks and trailing spaces;
+        // collapse them so the sentence splitter sees clean paragraphs.
+        return result.text
+          .replace(/[ \t]+\n/g, '\n')
+          .replace(/\n{3,}/g, '\n\n');
+      } finally {
+        await parser.destroy();
+      }
+    }
+
+    return fs.readFile(filePath, 'utf-8');
+  }
+
   async ingestFromDirectory(
     directory: string,
   ): Promise<{ files: number; chunks: number }> {
@@ -118,7 +141,7 @@ export class KnowledgeService {
 
     if (files.length === 0) {
       throw new Error(
-        `No .md/.markdown/.txt files found to ingest in "${directory}".`,
+        `No .md/.markdown/.txt/.pdf files found to ingest in "${directory}".`,
       );
     }
 
@@ -132,7 +155,7 @@ export class KnowledgeService {
       this.logger.log(`Processing embedding for file: ${fileName}`);
 
       const filePath = path.join(directory, fileName);
-      const content = (await fs.readFile(filePath, 'utf-8')).trim();
+      const content = (await this.extractText(filePath)).trim();
       if (!content) {
         this.logger.warn(`Skipping empty file: ${fileName}`);
         continue;
