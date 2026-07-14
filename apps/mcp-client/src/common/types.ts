@@ -2,6 +2,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import type { mcpTools } from '@anthropic-ai/sdk/helpers/beta/mcp';
 import type { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { ClaudeSamplingParams } from './claude-sampling.js';
 
 export type AppContext = {
   anthropic: Anthropic;
@@ -10,6 +11,7 @@ export type AppContext = {
   claudeTools: ReturnType<typeof mcpTools>;
   transport: StreamableHTTPClientTransport | undefined;
   thinkingBudget: number | undefined;
+  samplingParams: ClaudeSamplingParams;
   tools: Tool[];
   mcpConnected: boolean;
 };

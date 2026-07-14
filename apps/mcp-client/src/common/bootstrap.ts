@@ -7,6 +7,7 @@ import type { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/cl
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { BetaRunnableTool } from '@anthropic-ai/sdk/lib/tools/BetaRunnableTool.mjs';
 import { Client } from '@modelcontextprotocol/sdk/client';
+import { resolveClaudeSamplingParams } from './claude-sampling.js';
 import { connectMcpClient } from './connection.js';
 import { requireEnv } from './env.js';
 import type { AppContext } from './types.js';
@@ -33,6 +34,13 @@ export async function bootstrap(
   const rawBudget = Number(process.env.CLAUDE_THINKING_BUDGET);
   const thinkingBudget =
     Number.isFinite(rawBudget) && rawBudget > 0 ? rawBudget : undefined;
+
+  const samplingParams = resolveClaudeSamplingParams({
+    thinkingBudget,
+    onWarning: (message) => console.warn(message),
+  });
+
+  console.log('samplingParams to be used: ', samplingParams);
 
   let mcpClient: Client | undefined;
   let transport: StreamableHTTPClientTransport | undefined;
@@ -66,6 +74,7 @@ export async function bootstrap(
     claudeTools,
     transport,
     thinkingBudget,
+    samplingParams,
     tools,
     mcpConnected,
   };

@@ -16,11 +16,21 @@ export function printStartupBanner({
   tools,
   apiKey,
 }: StartupBannerOptions): void {
+  const thinkingEnabled =
+    process.env.CLAUDE_THINKING_BUDGET &&
+    Number(process.env.CLAUDE_THINKING_BUDGET) > 0;
+
   console.log(`Connected to MCP server (${tools.length} tools available).`);
   console.log(`Claude model: ${model}`);
   console.log(
     `Api-key used: ${apiKey ? `${apiKey.substring(0, 12)}...${apiKey.substring(apiKey.length - 10)}` : ' *** no key defined in environment variable ANTHROPIC_API_KEY ***'}`,
   );
+  console.log(
+    `Thinking budget: ${process.env.CLAUDE_THINKING_BUDGET} (thinking enabled: ${thinkingEnabled ? 'yes' : 'no'})`,
+  );
+  console.log(`Temperature: ${process.env.CLAUDE_TEMPERATURE}`);
+  console.log(`Top P: ${process.env.CLAUDE_TOP_P}`);
+  console.log(`Top K: ${process.env.CLAUDE_TOP_K}`);
   console.log('--------------------------------');
   console.log('Available tools:');
 
