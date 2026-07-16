@@ -6,10 +6,16 @@ import './ChatWindow.css';
 type ChatWindowProps = {
   messages: DisplayMessage[];
   isStreaming: boolean;
+  promptCacheTtl?: '5m' | '1h';
   onSend: (message: string) => void;
 };
 
-export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
+export function ChatWindow({
+  messages,
+  isStreaming,
+  promptCacheTtl,
+  onSend,
+}: ChatWindowProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -73,7 +79,11 @@ export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
     <div className="chat-window">
       <div className="messages">
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble
+            key={message.id}
+            message={message}
+            promptCacheTtl={promptCacheTtl}
+          />
         ))}
         <div ref={bottomRef} />
       </div>

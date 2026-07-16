@@ -96,6 +96,8 @@ export async function runChat({
               );
               break;
             }
+            case 'prompt_cache':
+              break;
             case 'done':
               if (textStarted) {
                 process.stdout.write('\n\n');

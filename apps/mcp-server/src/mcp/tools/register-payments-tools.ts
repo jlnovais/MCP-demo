@@ -49,7 +49,10 @@ export function registerPaymentsTools(
         customerPhone: z
           .string()
           .optional()
-          .describe('Customer phone number. Required when type is MBWAY.'),
+          .describe(
+            'Customer phone number. Required when type is MBWAY. ' +
+              "If no phone number is specified or if you don't know the phone number, you must ask for it. Never assume you know someone's phone number if no one has given it to you explicitly. ",
+          ),
         description: z
           .string()
           .describe(
@@ -85,18 +88,25 @@ export function registerPaymentsTools(
     'list_payments',
     {
       description:
-        'List payment requests with pagination and filters from the Wallet API.',
+        'List payment requests with pagination and filters from the Wallet API.' +
+        ' Assume that you are using an admin account unless you are told otherwise. ',
       inputSchema: {
         merchantId: z
           .string()
           .describe(
-            "Merchant identifier. Ignored for non-admin accounts (results are scoped to the authenticated merchant). If no merchantId is specified (that is, if you don't know the merchantId), pass and empty string (not null or undefined).",
+            'Merchant identifier. Ignored for non-admin accounts (results are scoped to the authenticated merchant). ' +
+              "If no merchantId is specified (that is, if you don't know the merchantId), pass an empty string (not null or undefined). ",
           ),
         id: z
           .string()
           .optional()
           .describe('Filter by Hashids-encoded payment ID.'),
-        userId: z.string().optional().describe('Filter by user ID.'),
+        userId: z
+          .string()
+          .optional()
+          .describe(
+            "Filter by user ID. If no user ID is specified (that is, if you don't know the userId), pass an empty string (not null or undefined). ",
+          ),
         status: paymentStatusSchema
           .optional()
           .describe('Filter by payment status.'),

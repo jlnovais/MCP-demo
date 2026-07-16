@@ -22,6 +22,22 @@ export type BootstrapOptions = {
 export async function bootstrap(
   options: BootstrapOptions = {},
 ): Promise<AppContext> {
+  const promptCacheEnabled =
+    process.env.PROMPT_CACHE_ENABLED?.trim().toLowerCase() === 'true';
+
+  const rawPromptCacheTtl = process.env.PROMPT_CACHE_TTL?.trim().toLowerCase();
+  const promptCacheTtl: '5m' | '1h' = rawPromptCacheTtl === '1h' ? '1h' : '5m';
+  if (
+    rawPromptCacheTtl !== undefined &&
+    rawPromptCacheTtl !== '' &&
+    rawPromptCacheTtl !== '5m' &&
+    rawPromptCacheTtl !== '1h'
+  ) {
+    console.warn(
+      `Invalid PROMPT_CACHE_TTL="${process.env.PROMPT_CACHE_TTL}" (expected "5m" or "1h"); using 5m.`,
+    );
+  }
+
   const anthropicApiKey = requireEnv('ANTHROPIC_API_KEY');
   const anthropic = new Anthropic({ apiKey: anthropicApiKey });
   const model = process.env.CLAUDE_MODEL ?? 'claude-sonnet-5';
@@ -89,5 +105,7 @@ export async function bootstrap(
     classifierModel,
     classifierEnabled,
     mcpConnected,
+    promptCacheEnabled,
+    promptCacheTtl,
   };
 }
