@@ -13,6 +13,10 @@ export type AppContext = {
   thinkingBudget: number | undefined;
   samplingParams: ClaudeSamplingParams;
   tools: Tool[];
+  systemPrompt: string;
+  classifierPrompt: string;
+  classifierModel: string;
+  classifierEnabled: boolean;
   mcpConnected: boolean;
 };
 

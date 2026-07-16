@@ -1,8 +1,10 @@
 # compiled output
-/dist
-apps/mcp-client/web/dist
+dist/
+build/
 /node_modules
-/build
+
+# TypeScript incremental build info
+*.tsbuildinfo
 
 # Logs
 logs

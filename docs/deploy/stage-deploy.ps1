@@ -221,6 +221,14 @@ if (-not (Test-Path $knowledgeSrc)) {
 Copy-Item -Recurse -Force $knowledgeSrc $knowledgeDst
 Write-Host "Copied knowledge docs -> $knowledgeDst"
 
+$ingestScriptSrc = Join-Path $PSScriptRoot 'ingest-knowledge.sh'
+$ingestScriptDst = Join-Path $StagingServer 'ingest-knowledge.sh'
+if (-not (Test-Path $ingestScriptSrc)) {
+  throw "Ingest script not found: $ingestScriptSrc"
+}
+Copy-Item -Force $ingestScriptSrc $ingestScriptDst
+Write-Host "Copied ingest script -> $ingestScriptDst"
+
 Copy-WorkspaceManifests -StagingDir $StagingServer -AppNames @('mcp-server') -IncludeApiCommon
 
 # --- mcp-client staging ---

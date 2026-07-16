@@ -12,10 +12,19 @@ type ChatWindowProps = {
 export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const sentHistory = useRef<string[]>([]);
+  const historyIndex = useRef<number | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      textareaRef.current?.focus();
+    }
+  }, [isStreaming]);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -24,6 +33,8 @@ export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
       return;
     }
     onSend(trimmed);
+    sentHistory.current.push(trimmed);
+    historyIndex.current = null;
     setInput('');
   };
 
@@ -31,6 +42,30 @@ export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       handleSubmit(event);
+      return;
+    }
+
+    const history = sentHistory.current;
+    const isNavigating = historyIndex.current !== null;
+
+    if (event.key === 'ArrowUp' && history.length > 0 && (input === '' || isNavigating)) {
+      event.preventDefault();
+      const nextIndex = isNavigating ? Math.max(0, historyIndex.current! - 1) : history.length - 1;
+      historyIndex.current = nextIndex;
+      setInput(history[nextIndex]);
+      return;
+    }
+
+    if (event.key === 'ArrowDown' && isNavigating) {
+      event.preventDefault();
+      const nextIndex = historyIndex.current! + 1;
+      if (nextIndex >= history.length) {
+        historyIndex.current = null;
+        setInput('');
+      } else {
+        historyIndex.current = nextIndex;
+        setInput(history[nextIndex]);
+      }
     }
   };
 
@@ -46,8 +81,12 @@ export function ChatWindow({ messages, isStreaming, onSend }: ChatWindowProps) {
       <div className="chat-input-area">
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <textarea
+            ref={textareaRef}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) => {
+              historyIndex.current = null;
+              setInput(event.target.value);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Ask about wallets, payments, or knowledge base…"
             disabled={isStreaming}
