@@ -59,6 +59,7 @@ const serverConfig: ServerConfig = {
     name: tool.name,
     description: tool.description ?? '',
   })),
+  promptCacheTtl: appContext.promptCacheTtl,
 };
 
 console.log(`MCP web client running on http://localhost:${port}`);

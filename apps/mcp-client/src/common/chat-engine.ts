@@ -1,6 +1,7 @@
 import type {
   BetaMessageParam,
   BetaToolResultBlockParam,
+  BetaUsage,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { randomUUID } from 'node:crypto';
 import { OUT_OF_SCOPE_LABEL, REFUSAL_MESSAGE } from './system-prompt.js';
@@ -9,10 +10,30 @@ import type {
   ChatStreamEvent,
   DisplayMessage,
   MessageBlock,
+  PromptCacheStats,
 } from './types.js';
 
 const TOOL_RESULT_MAX_CHARS = 1000;
 const CLASSIFIER_MAX_TOKENS = 16;
+
+function promptCacheStats(usage: BetaUsage, step: number): PromptCacheStats {
+  const read = usage.cache_read_input_tokens ?? 0;
+  const write = usage.cache_creation_input_tokens ?? 0;
+  return {
+    step,
+    status: read > 0 ? 'HIT' : write > 0 ? 'WRITE' : 'MISS',
+    read,
+    write,
+    input: usage.input_tokens,
+    output: usage.output_tokens,
+  };
+}
+
+function logPromptCacheUsage(stats: PromptCacheStats): void {
+  console.log(
+    `[prompt-cache] step=${stats.step} ${stats.status} read=${stats.read} write=${stats.write} input=${stats.input} output=${stats.output}`,
+  );
+}
 
 // Phrases (English + Portuguese) an assistant uses when asking the user to
 // supply input. When the previous assistant turn ends with a question or one of
@@ -57,6 +78,8 @@ type ChatEngineContext = Pick<
   | 'classifierPrompt'
   | 'classifierModel'
   | 'classifierEnabled'
+  | 'promptCacheEnabled'
+  | 'promptCacheTtl'
 >;
 
 function stringifyToolResultContent(
@@ -194,10 +217,19 @@ export async function streamChatTurn(
     messages,
     tools: ctx.claudeTools,
     stream: true,
+    ...(ctx.promptCacheEnabled
+      ? {
+          cache_control: {
+            type: 'ephemeral' as const,
+            ...(ctx.promptCacheTtl === '1h' ? { ttl: '1h' as const } : {}),
+          },
+        }
+      : {}),
     ...(thinkingConfig ? { thinking: thinkingConfig } : ctx.samplingParams),
   });
 
   let printedMessages = runner.params.messages.length;
+  let apiStep = 0;
 
   for await (const stream of runner) {
     const currentMessages = runner.params.messages;
@@ -224,6 +256,10 @@ export async function streamChatTurn(
       }
     });
     await stream.done();
+    const finalMessage = await stream.finalMessage();
+    const cacheStats = promptCacheStats(finalMessage.usage, ++apiStep);
+    logPromptCacheUsage(cacheStats);
+    onEvent({ type: 'prompt_cache', stats: cacheStats });
   }
 
   const finalMessages = runner.params.messages;

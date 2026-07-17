@@ -18,6 +18,18 @@ export type AppContext = {
   classifierModel: string;
   classifierEnabled: boolean;
   mcpConnected: boolean;
+  promptCacheEnabled: boolean;
+  /** Anthropic prompt-cache TTL: `5m` (default) or `1h`. */
+  promptCacheTtl: '5m' | '1h';
+};
+
+export type PromptCacheStats = {
+  step: number;
+  status: 'HIT' | 'WRITE' | 'MISS';
+  read: number;
+  write: number;
+  input: number;
+  output: number;
 };
 
 export type ChatStreamEvent =
@@ -25,6 +37,7 @@ export type ChatStreamEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool_use'; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; text: string; isError: boolean }
+  | { type: 'prompt_cache'; stats: PromptCacheStats }
   | { type: 'done' }
   | { type: 'error'; message: string };
 
@@ -57,4 +70,5 @@ export type ServerConfig = {
   mcpConnected: boolean;
   toolCount: number;
   tools: Array<{ name: string; description: string }>;
+  promptCacheTtl: '5m' | '1h';
 };

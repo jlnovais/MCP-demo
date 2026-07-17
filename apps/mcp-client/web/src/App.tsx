@@ -153,6 +153,13 @@ export function App() {
               return { ...message, streaming: false };
             }
 
+            if (event.type === 'prompt_cache') {
+              return {
+                ...message,
+                cacheStats: [...(message.cacheStats ?? []), event.stats],
+              };
+            }
+
             return {
               ...message,
               blocks: applyStreamEvent(message.blocks, event),
@@ -213,6 +220,7 @@ export function App() {
           <ChatWindow
             messages={messages}
             isStreaming={isStreaming}
+            promptCacheTtl={config?.promptCacheTtl}
             onSend={(text) => void handleSend(text)}
           />
         ) : (
