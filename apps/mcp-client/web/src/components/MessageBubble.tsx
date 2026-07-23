@@ -77,12 +77,184 @@ function formatTokenCount(value: number): string {
   return Math.round(value).toLocaleString();
 }
 
-function formatSavingsPct(value: number): string {
-  const rounded = Math.round(value);
+function formatSavingsLabel(savingsPct: number): {
+  text: string;
+  tone: 'down' | 'up' | 'flat';
+} {
+  const rounded = Math.round(savingsPct);
   if (rounded === 0) {
-    return '0%';
+    return { text: 'same cost', tone: 'flat' };
   }
-  return `${rounded > 0 ? '+' : ''}${rounded}%`;
+  if (rounded < 0) {
+    return { text: `saved ${Math.abs(rounded)}%`, tone: 'down' };
+  }
+  return { text: `cost ${rounded}% more`, tone: 'up' };
+}
+
+function savingsClassName(tone: 'down' | 'up' | 'flat'): string | undefined {
+  if (tone === 'down') {
+    return 'cache-savings-down';
+  }
+  if (tone === 'up') {
+    return 'cache-savings-up';
+  }
+  return undefined;
+}
+
+function CacheLegendPopover({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div
+      className="cache-stats-popover cache-stats-popover-legend"
+      role="dialog"
+      aria-label="Cache stats legend"
+    >
+      <div className="cache-stats-popover-header">
+        <strong className="cache-stats-popover-title-legend">
+          Prompt cache line
+        </strong>
+        <button
+          type="button"
+          className="cache-stats-popover-close"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+      <dl>
+        {CACHE_HELP_ITEMS.map((item) => (
+          <div key={item.term} className="cache-stats-popover-item">
+            <dt>{item.term}</dt>
+            <dd>{item.text}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function CacheCostStepCard({
+  stats,
+  promptCacheTtl,
+}: {
+  stats: PromptCacheStats;
+  promptCacheTtl: '5m' | '1h';
+}) {
+  const billing = cacheBilling([stats], promptCacheTtl);
+  const writeMult = CACHE_WRITE_MULT[promptCacheTtl];
+  const savings = formatSavingsLabel(billing.savingsPct);
+
+  return (
+    <div className="cache-cost-step">
+      <div className="cache-cost-step-header">
+        <span>API call {stats.step}</span>
+        <span className={savingsClassName(savings.tone)}>{savings.text}</span>
+      </div>
+      <div className="cache-cost-step-rows">
+        <div className="cache-stats-billing-row">
+          <span>Without cache</span>
+          <span>{formatTokenCount(billing.off)} tokens</span>
+        </div>
+        <div className="cache-stats-billing-row">
+          <span>With cache (what you paid)</span>
+          <span>{formatTokenCount(billing.on)} tokens</span>
+        </div>
+      </div>
+      <p className="cache-cost-step-math">
+        With cache = read {formatTokenCount(stats.read)} × {CACHE_READ_MULT} +
+        write {formatTokenCount(stats.write)} × {writeMult} + in{' '}
+        {formatTokenCount(stats.input)}
+      </p>
+    </div>
+  );
+}
+
+function CacheCostPopover({
+  open,
+  onClose,
+  cacheStats,
+  promptCacheTtl,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cacheStats: PromptCacheStats[];
+  promptCacheTtl: '5m' | '1h';
+}) {
+  if (!open) {
+    return null;
+  }
+
+  const billing = cacheBilling(cacheStats, promptCacheTtl);
+  const writeMult = CACHE_WRITE_MULT[promptCacheTtl];
+  const savings = formatSavingsLabel(billing.savingsPct);
+  const multiStep = cacheStats.length > 1;
+
+  return (
+    <div
+      className="cache-stats-popover cache-stats-popover-cost"
+      role="dialog"
+      aria-label="Cache token costs"
+    >
+      <div className="cache-stats-popover-header">
+        <strong className="cache-stats-popover-title-cost">
+          Prompt token cost
+        </strong>
+        <button
+          type="button"
+          className="cache-stats-popover-close"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+
+      <p className="cache-cost-intro">
+        Compare how many prompt tokens this reply would cost with cache off vs
+        on. Numbers are billed equivalents at {promptCacheTtl} rates (read{' '}
+        {CACHE_READ_MULT}×, write {writeMult}×). Output tokens are unchanged.
+      </p>
+
+      <div className="cache-stats-billing">
+        {cacheStats.map((stats) => (
+          <CacheCostStepCard
+            key={stats.step}
+            stats={stats}
+            promptCacheTtl={promptCacheTtl}
+          />
+        ))}
+
+        {multiStep ? (
+          <div className="cache-cost-total">
+            <div className="cache-cost-step-header">
+              <span>Whole reply</span>
+              <span className={savingsClassName(savings.tone)}>
+                {savings.text}
+              </span>
+            </div>
+            <div className="cache-stats-billing-row total">
+              <span>Without cache</span>
+              <span>{formatTokenCount(billing.off)} tokens</span>
+            </div>
+            <div className="cache-stats-billing-row total">
+              <span>With cache (what you paid)</span>
+              <span>{formatTokenCount(billing.on)} tokens</span>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 function CacheStatsHelp({
@@ -92,102 +264,47 @@ function CacheStatsHelp({
   cacheStats: PromptCacheStats[];
   promptCacheTtl: '5m' | '1h';
 }) {
-  const [open, setOpen] = useState(false);
-  const billing = cacheBilling(cacheStats, promptCacheTtl);
-  const writeMult = CACHE_WRITE_MULT[promptCacheTtl];
+  const [openPanel, setOpenPanel] = useState<'legend' | 'cost' | null>(null);
+
+  const toggle = (panel: 'legend' | 'cost') => {
+    setOpenPanel((current) => (current === panel ? null : panel));
+  };
 
   return (
-    <div className="cache-stats-help">
-      <button
-        type="button"
-        className="cache-stats-help-btn"
-        aria-expanded={open}
-        aria-label="Explain cache stats"
-        onClick={() => setOpen((value) => !value)}
-      >
-        ?
-      </button>
-      {open ? (
-        <div className="cache-stats-popover" role="dialog" aria-label="Cache stats legend">
-          <div className="cache-stats-popover-header">
-            <strong>Prompt cache line</strong>
-            <button
-              type="button"
-              className="cache-stats-popover-close"
-              aria-label="Close"
-              onClick={() => setOpen(false)}
-            >
-              ×
-            </button>
-          </div>
+    <div className="cache-stats-actions">
+      <div className="cache-stats-help">
+        <button
+          type="button"
+          className="cache-stats-help-btn cache-stats-help-btn-legend"
+          aria-expanded={openPanel === 'legend'}
+          aria-label="Explain cache stats"
+          onClick={() => toggle('legend')}
+        >
+          ?
+        </button>
+        <CacheLegendPopover
+          open={openPanel === 'legend'}
+          onClose={() => setOpenPanel(null)}
+        />
+      </div>
 
-          <div className="cache-stats-billing">
-            <div className="cache-stats-billing-title">
-              Prompt tokens billed ({promptCacheTtl} rates)
-            </div>
-            {cacheStats.length > 1
-              ? cacheStats.map((stats) => {
-                  const stepBilling = cacheBilling([stats], promptCacheTtl);
-                  return (
-                    <div key={stats.step} className="cache-stats-billing-row">
-                      <span>step {stats.step}</span>
-                      <span>
-                        off {formatTokenCount(stepBilling.off)} · on{' '}
-                        {formatTokenCount(stepBilling.on)} ·{' '}
-                        <span
-                          className={
-                            stepBilling.savingsPct < 0
-                              ? 'cache-savings-down'
-                              : stepBilling.savingsPct > 0
-                                ? 'cache-savings-up'
-                                : undefined
-                          }
-                        >
-                          {formatSavingsPct(stepBilling.savingsPct)} tokens
-                        </span>
-                      </span>
-                    </div>
-                  );
-                })
-              : null}
-            <div className="cache-stats-billing-row total">
-              <span>cache off</span>
-              <span>{formatTokenCount(billing.off)}</span>
-            </div>
-            <div className="cache-stats-billing-row total">
-              <span>cache on</span>
-              <span>{formatTokenCount(billing.on)}</span>
-            </div>
-            <div className="cache-stats-billing-row total">
-              <span>savings</span>
-              <span
-                className={
-                  billing.savingsPct < 0
-                    ? 'cache-savings-down'
-                    : billing.savingsPct > 0
-                      ? 'cache-savings-up'
-                      : undefined
-                }
-              >
-                {formatSavingsPct(billing.savingsPct)} tokens
-              </span>
-            </div>
-            <p className="cache-stats-billing-note">
-              Equivalents vs base input (read {CACHE_READ_MULT}×, write {writeMult}
-              ×). Output is the same either way.
-            </p>
-          </div>
-
-          <dl>
-            {CACHE_HELP_ITEMS.map((item) => (
-              <div key={item.term} className="cache-stats-popover-item">
-                <dt>{item.term}</dt>
-                <dd>{item.text}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      ) : null}
+      <div className="cache-stats-help">
+        <button
+          type="button"
+          className="cache-stats-help-btn cache-stats-help-btn-cost"
+          aria-expanded={openPanel === 'cost'}
+          aria-label="Show cache token costs"
+          onClick={() => toggle('cost')}
+        >
+          $
+        </button>
+        <CacheCostPopover
+          open={openPanel === 'cost'}
+          onClose={() => setOpenPanel(null)}
+          cacheStats={cacheStats}
+          promptCacheTtl={promptCacheTtl}
+        />
+      </div>
     </div>
   );
 }

@@ -24,6 +24,8 @@ printStartupBanner({
   model: app.model,
   tools: app.tools,
   apiKey: requireEnv('ANTHROPIC_API_KEY'),
+  promptCacheEnabled: app.promptCacheEnabled,
+  promptCacheTtl: app.promptCacheTtl,
 });
 
 await runChat(app);

@@ -9,12 +9,16 @@ export type StartupBannerOptions = {
   model: string;
   tools: Tool[];
   apiKey: string;
+  promptCacheEnabled: boolean;
+  promptCacheTtl: '5m' | '1h';
 };
 
 export function printStartupBanner({
   model,
   tools,
   apiKey,
+  promptCacheEnabled,
+  promptCacheTtl,
 }: StartupBannerOptions): void {
   const thinkingEnabled =
     process.env.CLAUDE_THINKING_BUDGET &&
@@ -31,6 +35,9 @@ export function printStartupBanner({
   console.log(`Temperature: ${process.env.CLAUDE_TEMPERATURE}`);
   console.log(`Top P: ${process.env.CLAUDE_TOP_P}`);
   console.log(`Top K: ${process.env.CLAUDE_TOP_K}`);
+  console.log(
+    `Prompt cache: ${promptCacheEnabled ? `enabled (TTL ${promptCacheTtl})` : 'disabled'}`,
+  );
   console.log('--------------------------------');
   console.log('Available tools:');
 

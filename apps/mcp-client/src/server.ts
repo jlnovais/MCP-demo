@@ -67,6 +67,9 @@ console.log(`Model: ${appContext.model}`);
 console.log(
   `MCP: ${appContext.mcpConnected ? `${appContext.tools.length} tools` : 'not connected'}`,
 );
+console.log(
+  `Prompt cache: ${appContext.promptCacheEnabled ? `enabled (TTL ${appContext.promptCacheTtl})` : 'disabled'}`,
+);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true });
