@@ -6,29 +6,71 @@ import { KnowledgeService } from './knowledge.service';
 /**
  * Standalone ingestion entrypoint.
  *
- * Reads .md/.markdown/.txt files from a directory (default: apps/mcp-server/knowledge),
- * chunks + embeds them with Voyage AI, and (re)writes the LanceDB knowledge table.
+ * Reads .md/.markdown/.txt/.pdf files from a directory (default: apps/mcp-server/knowledge),
+ * chunks + embeds them with Voyage AI, and writes to the configured vector store
+ * (VECTOR_STORE=postgres|lancedb; default postgres).
+ *
+ * By default, upserts by source file (replaces chunks for files being ingested).
+ * Pass --reset to delete all embeddings first.
  *
  * Usage:
  *   npm run ingest:knowledge -w @mcp-demo/mcp-server
+ *   npm run ingest:knowledge -w @mcp-demo/mcp-server -- --reset
  *   npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs
+ *   npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs --reset
  */
+function parseArgs(argv: string[]): { directory?: string; reset: boolean } {
+  let reset = false;
+  let directory: string | undefined;
+
+  for (const arg of argv) {
+    if (arg === '--reset') {
+      reset = true;
+      continue;
+    }
+    if (arg.startsWith('-')) {
+      throw new Error(`Unknown flag: ${arg}. Supported: --reset`);
+    }
+    if (directory) {
+      throw new Error(
+        `Unexpected extra argument: ${arg}. Pass at most one directory path.`,
+      );
+    }
+    directory = arg;
+  }
+
+  return { directory, reset };
+}
+
 async function main(): Promise<void> {
+  const { directory: argDir, reset } = parseArgs(process.argv.slice(2));
+
   const app = await NestFactory.createApplicationContext(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
 
   try {
-    const knowledge = app.get(KnowledgeService, { strict: false });
+    const knowledgeService = app.get(KnowledgeService, { strict: false });
 
-    const argDir = process.argv[2];
     const directory = argDir
       ? path.resolve(argDir)
       : path.join(process.cwd(), 'knowledge');
 
-    console.log(`Ingesting knowledge base from: ${directory}`);
-    const { files, chunks } = await knowledge.ingestFromDirectory(directory);
-    console.log(`Done. Indexed ${chunks} chunks from ${files} file(s).`);
+    console.log(`Vector store: ${knowledgeService.vectorStoreName}`);
+    console.log(
+      `Ingesting knowledge base from: ${directory}` +
+        (reset
+          ? ' (reset: delete all embeddings first)'
+          : ' (upsert by source)'),
+    );
+    const result = await knowledgeService.ingestFromDirectory(directory, {
+      reset,
+    });
+    console.log(
+      `Done. Indexed ${result.chunks} chunks from ${result.files} file(s)` +
+        (result.reset ? ' after reset' : '') +
+        '.',
+    );
   } finally {
     await app.close();
   }
