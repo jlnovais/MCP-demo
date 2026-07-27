@@ -6,12 +6,12 @@ import { KnowledgeService } from './knowledge.service';
 /**
  * Standalone ingestion entrypoint.
  *
- * Reads .md/.markdown/.txt/.pdf files from a directory (default: apps/mcp-server/knowledge),
+ * Reads .md/.markdown/.txt/.pdf/.html files from a directory (default: apps/mcp-server/knowledge),
  * chunks + embeds them with Voyage AI, and writes to the configured vector store
  * (VECTOR_STORE=postgres|lancedb; default postgres).
  *
- * By default, upserts by source file (replaces chunks for files being ingested).
- * Pass --reset to delete all embeddings first.
+ * By default, skips files whose content hash already matches the store (upsert by source
+ * for new/changed files only). Pass --reset to delete all embeddings and re-embed everything.
  *
  * Usage:
  *   npm run ingest:knowledge -w @mcp-demo/mcp-server
@@ -60,14 +60,15 @@ async function main(): Promise<void> {
     console.log(
       `Ingesting knowledge base from: ${directory}` +
         (reset
-          ? ' (reset: delete all embeddings first)'
-          : ' (upsert by source)'),
+          ? ' (reset: delete all embeddings and re-embed)'
+          : ' (skip unchanged by content hash)'),
     );
     const result = await knowledgeService.ingestFromDirectory(directory, {
       reset,
     });
     console.log(
       `Done. Indexed ${result.chunks} chunks from ${result.files} file(s)` +
+        (result.skipped > 0 ? `, skipped ${result.skipped} unchanged` : '') +
         (result.reset ? ' after reset' : '') +
         '.',
     );

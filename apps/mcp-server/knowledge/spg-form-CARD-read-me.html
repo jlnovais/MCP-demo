@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+</head>
+
+<body>
+
+    <h1>SPG Form - Cartão de Crédito - CARD (na plataforma da sibs)</h1>
+
+    <h2>Exemplos dos objectos json a colocar no form</h2>
+
+
+    <b>spg-config</b>
+    <pre>
+{
+    "paymentMethodList": [],
+    "amount": {
+        "value": 2,
+        "currency": "EUR"
+    },
+    "language": "en",
+    "redirectUrl": "https://www.site-de-retorno.com/pagina",
+    "customerData": null
+}
+</pre>
+    <b>spg-style</b>
+    <pre>
+{
+    "layout": "default",
+    "theme": "default",
+    "color": {
+        "primary": "",
+        "secondary": "",
+        "border": "",
+        "surface": "",
+        "header": {
+            "text": "",
+            "background": ""
+        },
+        "body": {
+            "text": "",
+            "background": ""
+        }
+    },
+    "font": ""
+}
+</pre>
+
+
+
+
+    <br />
+
+
+    Parametros a devolver para o cliente fazer o form:
+    <ul>
+        <li>
+            <b>spg-context</b> =
+            "eyJQYXltZW50TWV0aG9kIjpbIkNBUkQiLCJNQldBWSIsIlJFRkVSRU5DRSJdLCJUcmFuc2FjdGlvblNpZ25hdHVyZSI6ImV5SjBlRWxrSWpvaVZIcFJWVXB3T1VwUmVVaHJTa1EzVlRRd1oxSWlMQ0p0WXlJNk9UazVPVGs1T1N3aWRHTWlPalV5TWpJeGZRPT0uSWxQY1Bib1NuMlNwNXVCOUdXUXFBcmdOaXhSSmlvdDl1ZTlNU2oxbDdDdz0uWEpJSk5PZ0kzWnJ2Q0ZlZjZ5RlhsMWdUNldhYjBXSDRZK2J0aHVSV1J0VEd1eDVRVnRCcUZYcEtXVjdjWHd4RyIsIkFtb3VudCI6eyJBbW91bnQiOjUuNSwiQ3VycmVuY3kiOiJFVVIifSwiTWFuZGF0ZSI6eyJNYW5kYXRlQXZhaWxhYmxlIjpmYWxzZX0sIk1PVE8iOmZhbHNlfQ=="
+        </li>
+        <li><b>{transactionID}</b> = TzQUJp9JQyHkJD7U40gR</li>
+    </ul>
+
+    O <b>{transactionID}</b> é colocado nesta script:
+
+    <br /><br />
+    <code class="ms-4 w-100">&lt;script src="<span class="baseUrl" style="display: inline;">https://spg.qly.site1.sibs.pt</span>/assets/js/widget.js?id={transactionID}"&gt;&lt;/script&gt;</code>
+    <br /><br />
+    O <b>spg-context</b> é um dos parametros do form; os outros parametros <b>spg-style</b> e <b>spg-config</b> não são
+    devolvidos ao cliente, mas este deve criar o form correctamente com esses campos.
+
+    <br><br>
+    <b>Nº:</b> 5186 2700 8997 8617<br />
+    <b>Validade:</b> 07/23<br />
+    <b>CVV:</b> 230
+
+
+    <h1>Valor de "layout" do objecto <b>spg-style</b></h1>
+
+    A sibs suporta dois valores para "layout" do objecto json <b>spg-style</b>: "default" e "spg_form". 
+
+    Ou seja, pode ser assim (default):
+
+    <pre>
+    "layout": "default"
+</pre>
+
+    ou assim (spg_form):
+
+    <pre>
+    "layout": "spg_form"
+</pre>
+
+    O valor mais recente é "spg_form", que é o recomendado pela sibs.<br /><br />
+    O valor "default" é o mais antigo e é o que foi usado no passado.<br />
+
+    <h1>exemplo com "layout": "default" (ver source)</h1>
+
+    <script src="https://spg.qly.site1.sibs.pt/assets/js/widget.js?id=1vbRdZyGj22sQxEs4gNA"></script>
+
+    <form class="paymentSPG"
+          spg-context="eyJQYXltZW50TWV0aG9kIjpbIkNBUkQiXSwiVHJhbnNhY3Rpb25TaWduYXR1cmUiOiJleUowZUVsa0lqb2lNWFppVW1SYWVVZHFNakp6VVhoRmN6Um5Ua0VpTENKdFl5STZPVGs1T1RrNU9Td2lkR01pT2pVek1UWTBmUT09Lklpc2pFSEFBZUFyc0FqTzUrSTI4N0xKV3NwSTZQbjk1eTI2Y1pBL0kzR289LkxqOGs5Z0JOUHN4eVF1WmNFQXF5aHJkcmd0YUVFYTVFZzdUMkhxd1oxMFRIK1VnalRrdVFUVDJuNCsvak5oTEwiLCJBbW91bnQiOnsiQW1vdW50IjowLjUsIkN1cnJlbmN5IjoiRVVSIn0sIk1hbmRhdGUiOnsiTWFuZGF0ZUF2YWlsYWJsZSI6ZmFsc2V9LCJNT1RPIjpmYWxzZX0="
+          spg-config="{&quot;paymentMethodList&quot;:[],&quot;amount&quot;:{&quot;value&quot;:2,&quot;currency&quot;:&quot;EUR&quot;},&quot;language&quot;:&quot;en&quot;,&quot;redirectUrl&quot;:&quot;https://www.google.com&quot;, &quot;customerData&quot;:null}"
+          spg-style="{&quot;layout&quot;:&quot;default&quot;,&quot;theme&quot;:&quot;default&quot;,&quot;color&quot;:{&quot;primary&quot;:&quot;&quot;,&quot;secondary&quot;:&quot;&quot;,&quot;border&quot;:&quot;&quot;,&quot;surface&quot;:&quot;&quot;,&quot;header&quot;:{&quot;text&quot;:&quot;&quot;,&quot;background&quot;:&quot;&quot;},&quot;body&quot;:{&quot;text&quot;:&quot;&quot;,&quot;background&quot;:&quot;&quot;}},&quot;font&quot;:&quot;&quot;}">
+    </form>
+
+ 
+
+    <h1>exemplo com "layout": "spg_form" </h1>
+
+
+    <pre style="font-family: monospace, ui-monospace, Consolas, &quot;Courier New&quot;, Courier, monospace;"><code>&lt;form class="paymentSPG"
+        spg-context="eyJQYXltZW50TWV0aG9kIjpbIkNBUkQiXSwiVHJhbnNhY3Rpb25TaWduYXR1cmUiOiJleUowZUVsa0lqb2lNWFppVW1SYWVVZHFNakp6VVhoRmN6Um5Ua0VpTENKdFl5STZPVGs1T1RrNU9Td2lkR01pT2pVek1UWTBmUT09Lklpc2pFSEFBZUFyc0FqTzUrSTI4N0xKV3NwSTZQbjk1eTI2Y1pBL0kzR289LkxqOGs5Z0JOUHN4eVF1WmNFQXF5aHJkcmd0YUVFYTVFZzdUMkhxd1oxMFRIK1VnalRrdVFUVDJuNCsvak5oTEwiLCJBbW91bnQiOnsiQW1vdW50IjowLjUsIkN1cnJlbmN5IjoiRVVSIn0sIk1hbmRhdGUiOnsiTWFuZGF0ZUF2YWlsYWJsZSI6ZmFsc2V9LCJNT1RPIjpmYWxzZX0="
+        spg-config="{&quot;paymentMethodList&quot;:[],&quot;amount&quot;:{&quot;value&quot;:2,&quot;currency&quot;:&quot;EUR&quot;},&quot;language&quot;:&quot;en&quot;,&quot;redirectUrl&quot;:&quot;https://www.google.com&quot;, &quot;customerData&quot;:null}"
+        spg-style="{<span style="color: red;">&quot;layout&quot;:&quot;spg_form&quot;</span>,&quot;theme&quot;:&quot;default&quot;,&quot;color&quot;:{&quot;primary&quot;:&quot;&quot;,&quot;secondary&quot;:&quot;&quot;,&quot;border&quot;:&quot;&quot;,&quot;surface&quot;:&quot;&quot;,&quot;header&quot;:{&quot;text&quot;:&quot;&quot;,&quot;background&quot;:&quot;&quot;},&quot;body&quot;:{&quot;text&quot;:&quot;&quot;,&quot;background&quot;:&quot;&quot;}},&quot;font&quot;:&quot;&quot;}"&gt;
+&lt;/form&gt;</code></pre>
+        
+
+
+
+</body>
+
+</html>

@@ -108,6 +108,7 @@ export class PostgresVectorStore implements KnowledgeVectorStore {
             source TEXT NOT NULL,
             chunk_index INT NOT NULL,
             embedding vector(${vectorDimensions}) NOT NULL,
+            content_hash TEXT NOT NULL DEFAULT '',
             created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
             UNIQUE (source, chunk_index)
@@ -115,11 +116,12 @@ export class PostgresVectorStore implements KnowledgeVectorStore {
         `);
       }
 
-      // Existing tables created before timestamps existed.
+      // Existing tables created before timestamps / content_hash existed.
       await client.query(`
         ALTER TABLE ${this.quotedTable}
           ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-          ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+          ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+          ADD COLUMN IF NOT EXISTS content_hash TEXT NOT NULL DEFAULT ''
       `);
 
       const indexName = `${this.tableName}_embedding_hnsw_idx`;
@@ -167,6 +169,57 @@ export class PostgresVectorStore implements KnowledgeVectorStore {
       chunkIndex: Number(row.chunk_index),
       distance: Number(row.distance),
     }));
+  }
+
+  async getSourceContentHashes(): Promise<Map<string, string>> {
+    const client = await this.pool.connect();
+    try {
+      const exists = await client.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1
+           FROM pg_class c
+           JOIN pg_namespace n ON n.oid = c.relnamespace
+           WHERE c.relname = $1 AND n.nspname = 'public' AND c.relkind = 'r'
+         ) AS exists`,
+        [this.tableName],
+      );
+      if (!exists.rows[0]?.exists) {
+        return new Map();
+      }
+
+      const hasColumn = await client.query<{ exists: boolean }>(
+        `SELECT EXISTS (
+           SELECT 1
+           FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = $1
+             AND column_name = 'content_hash'
+         ) AS exists`,
+        [this.tableName],
+      );
+      if (!hasColumn.rows[0]?.exists) {
+        return new Map();
+      }
+
+      const result = await client.query<{
+        source: string;
+        content_hash: string;
+      }>(
+        `SELECT DISTINCT ON (source) source, content_hash
+         FROM ${this.quotedTable}
+         ORDER BY source`,
+      );
+
+      const hashes = new Map<string, string>();
+      for (const row of result.rows) {
+        if (row.content_hash) {
+          hashes.set(row.source, row.content_hash);
+        }
+      }
+      return hashes;
+    } finally {
+      client.release();
+    }
   }
 
   async upsertBySource(chunks: KnowledgeChunk[]): Promise<void> {
@@ -233,20 +286,21 @@ export class PostgresVectorStore implements KnowledgeVectorStore {
       const placeholders: string[] = [];
 
       batch.forEach((chunk, index) => {
-        const offset = index * 4;
+        const offset = index * 5;
         placeholders.push(
-          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}::vector)`,
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}::vector, $${offset + 5})`,
         );
         values.push(
           chunk.text,
           chunk.source,
           chunk.chunkIndex,
           toSql(chunk.vector),
+          chunk.contentHash,
         );
       });
 
       await client.query(
-        `INSERT INTO ${this.quotedTable} (text, source, chunk_index, embedding)
+        `INSERT INTO ${this.quotedTable} (text, source, chunk_index, embedding, content_hash)
          VALUES ${placeholders.join(', ')}`,
         values,
       );
