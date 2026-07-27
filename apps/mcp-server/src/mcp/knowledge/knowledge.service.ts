@@ -1,50 +1,41 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import * as lancedb from '@lancedb/lancedb';
 import { VoyageAIEmbedding } from '@llamaindex/voyage-ai';
 import { Document, SentenceSplitter } from 'llamaindex';
 import { PDFParse } from 'pdf-parse';
+import {
+  KNOWLEDGE_VECTOR_STORE,
+  KnowledgeChunk,
+  KnowledgeSearchHit,
+} from './vector-store.interface';
+import type { KnowledgeVectorStore } from './vector-store.interface';
 
-export interface KnowledgeSearchHit {
-  text: string;
-  source: string;
-  chunkIndex: number;
-  distance: number;
-}
-
-interface KnowledgeRow extends Record<string, unknown> {
-  vector: number[];
-  text: string;
-  source: string;
-  chunkIndex: number;
-}
-
-type KnowledgeSearchRow = KnowledgeRow & { _distance?: number };
+export type { KnowledgeSearchHit };
 
 const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt|pdf)$/i;
 const PDF_EXTENSION = /\.pdf$/i;
 const DEFAULT_TOP_K = 4;
 const DEFAULT_MODEL = 'voyage-3.5';
-const DEFAULT_TABLE = 'knowledge';
 const DEFAULT_CHUNK_SIZE = 512;
 const DEFAULT_CHUNK_OVERLAP = 64;
+
+export interface IngestOptions {
+  /** When true, delete all embeddings before writing. Default: false (upsert by source). */
+  reset?: boolean;
+}
 
 @Injectable()
 export class KnowledgeService {
   private readonly logger = new Logger(KnowledgeService.name);
-  private readonly dbPath: string;
-  private readonly tableName: string;
   private readonly embedModel: VoyageAIEmbedding;
-  private tablePromise: Promise<lancedb.Table> | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    this.dbPath =
-      this.config.get<string>('LANCEDB_PATH') ??
-      path.join(process.cwd(), 'data', 'lancedb');
-    this.tableName = this.config.get<string>('LANCEDB_TABLE') ?? DEFAULT_TABLE;
-
+  constructor(
+    private readonly config: ConfigService,
+    @Inject(KNOWLEDGE_VECTOR_STORE)
+    private readonly store: KnowledgeVectorStore,
+  ) {
     const apiKey = this.config.get<string>('VOYAGE_API_KEY');
     const model =
       this.config.get<string>('VOYAGE_EMBED_MODEL') ?? DEFAULT_MODEL;
@@ -58,21 +49,8 @@ export class KnowledgeService {
     });
   }
 
-  private async openTable(): Promise<lancedb.Table> {
-    if (!this.tablePromise) {
-      this.tablePromise = (async () => {
-        const db = await lancedb.connect(this.dbPath);
-        const names = await db.tableNames();
-        if (!names.includes(this.tableName)) {
-          throw new Error(
-            `Knowledge base table "${this.tableName}" was not found at "${this.dbPath}". ` +
-              'Ingest documents first with: npm run ingest:knowledge -w @mcp-demo/mcp-server',
-          );
-        }
-        return db.openTable(this.tableName);
-      })();
-    }
-    return this.tablePromise;
+  get vectorStoreName(): string {
+    return this.store.name;
   }
 
   async search(
@@ -84,8 +62,6 @@ export class KnowledgeService {
       return [];
     }
 
-    const table = await this.openTable();
-
     const queryVector = await this.embedModel.getQueryEmbedding({
       type: 'text',
       text: trimmed,
@@ -94,17 +70,7 @@ export class KnowledgeService {
       throw new Error('Failed to compute an embedding for the query.');
     }
 
-    const rows = (await table
-      .vectorSearch(queryVector)
-      .limit(topK)
-      .toArray()) as KnowledgeSearchRow[];
-
-    return rows.map((row) => ({
-      text: String(row.text ?? ''),
-      source: String(row.source ?? ''),
-      chunkIndex: Number(row.chunkIndex ?? 0),
-      distance: typeof row._distance === 'number' ? row._distance : Number.NaN,
-    }));
+    return this.store.search(queryVector, topK);
   }
 
   private async extractText(filePath: string): Promise<string> {
@@ -130,7 +96,10 @@ export class KnowledgeService {
 
   async ingestFromDirectory(
     directory: string,
-  ): Promise<{ files: number; chunks: number }> {
+    options: IngestOptions = {},
+  ): Promise<{ files: number; chunks: number; reset: boolean }> {
+    const reset = options.reset === true;
+
     const entries = await fs.readdir(directory, { withFileTypes: true });
     const files = entries
       .filter(
@@ -150,7 +119,7 @@ export class KnowledgeService {
       chunkOverlap: DEFAULT_CHUNK_OVERLAP,
     });
 
-    const rows: KnowledgeRow[] = [];
+    const rows: KnowledgeChunk[] = [];
     for (const fileName of files) {
       this.logger.log(`Processing embedding for file: ${fileName}`);
 
@@ -187,16 +156,19 @@ export class KnowledgeService {
       throw new Error(`No content could be extracted from "${directory}".`);
     }
 
-    const db = await lancedb.connect(this.dbPath);
-    const names = await db.tableNames();
-    if (names.includes(this.tableName)) {
-      await db.dropTable(this.tableName);
+    const dimensions = rows[0].vector.length;
+    await this.store.ensureReady(dimensions);
+
+    if (reset) {
+      this.logger.log(
+        `Resetting vector store "${this.store.name}" before ingest`,
+      );
+      await this.store.reset();
+      await this.store.ensureReady(dimensions);
     }
-    await db.createTable(this.tableName, rows);
 
-    // Force the read path to reopen the freshly written table.
-    this.tablePromise = null;
+    await this.store.upsertBySource(rows);
 
-    return { files: files.length, chunks: rows.length };
+    return { files: files.length, chunks: rows.length, reset };
   }
 }

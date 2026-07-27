@@ -9,12 +9,12 @@ For the full deploy workflow, see [deploy/DEPLOY.md](./deploy/DEPLOY.md).
 
 ## Overview
 
-The `search_knowledge_base` MCP tool reads from a **LanceDB** vector store on
-disk. Source documents live as plain files; ingestion embeds them with Voyage AI
-and writes the index.
+The `search_knowledge_base` MCP tool reads from the configured **vector store**
+(`VECTOR_STORE=lancedb` or `postgres`). Source documents live as plain files;
+ingestion embeds them with Voyage AI and writes the index.
 
 ```text
-knowledge/*.md  →  ingest.js  →  data/lancedb/  →  search_knowledge_base tool
+knowledge/*.md  →  ingest.js  →  LanceDB or Postgres  →  search_knowledge_base tool
 ```
 
 On the server, paths are relative to the mcp-server deploy root
@@ -22,9 +22,12 @@ On the server, paths are relative to the mcp-server deploy root
 
 | Path | Purpose |
 | --- | --- |
-| `knowledge/` | Source `.md` / `.markdown` / `.txt` files |
-| `data/lancedb/` | Generated vector store (from `LANCEDB_PATH` in `.env`) |
+| `knowledge/` | Source `.md` / `.markdown` / `.txt` / `.pdf` files |
+| `data/lancedb/` | LanceDB files when `VECTOR_STORE=lancedb` (from `LANCEDB_PATH`) |
 | `dist/apps/mcp-server/mcp/knowledge/ingest.js` | Ingestion entrypoint |
+
+Postgres mode stores embeddings in the database configured by `POSTGRES_*` (see
+[postgres-knowledge-schema.md](./postgres-knowledge-schema.md)).
 
 ## Prerequisites
 
@@ -32,7 +35,20 @@ In `/var/www/mcp-server/.env`:
 
 ```env
 VOYAGE_API_KEY=your-voyage-api-key
-VOYAGE_EMBED_MODEL=voyage-3.5
+VOYAGE_EMBED_MODEL=voyage-4
+VECTOR_STORE=postgres
+POSTGRES_HOST=...
+POSTGRES_PORT=5432
+POSTGRES_USER=...
+POSTGRES_PASSWORD=...
+POSTGRES_DB=mcp_knowledge
+POSTGRES_TABLE=knowledge_chunks
+```
+
+For LanceDB instead:
+
+```env
+VECTOR_STORE=lancedb
 LANCEDB_PATH=data/lancedb
 LANCEDB_TABLE=knowledge
 ```
@@ -68,23 +84,30 @@ cd /var/www/mcp-server
 node dist/apps/mcp-server/mcp/knowledge/ingest.js
 ```
 
+Default mode **upserts by source**: chunks for files in the directory replace
+existing rows for those file names; other sources are kept. To wipe all
+embeddings first:
+
+```bash
+node dist/apps/mcp-server/mcp/knowledge/ingest.js --reset
+```
+
 Default input is `knowledge/` under the current working directory. To ingest
 from another folder:
 
 ```bash
 cd /var/www/mcp-server
 node dist/apps/mcp-server/mcp/knowledge/ingest.js /path/to/other/docs
+node dist/apps/mcp-server/mcp/knowledge/ingest.js /path/to/other/docs --reset
 ```
 
 On success:
 
 ```text
-Ingesting knowledge base from: /var/www/mcp-server/knowledge
+Vector store: postgres
+Ingesting knowledge base from: /var/www/mcp-server/knowledge (upsert by source)
 Done. Indexed 42 chunks from 5 file(s).
 ```
-
-> **Full rebuild:** each run **drops and recreates** the LanceDB table. All
-> documents you want indexed must be in the target directory for that run.
 
 ### 3. Restart both apps
 
@@ -122,7 +145,8 @@ pm2 restart mcp-client
 
 ## Alternative: ingest on PC, upload LanceDB
 
-If you prefer not to call Voyage from the server:
+If you prefer not to call Voyage from the server **and** you use
+`VECTOR_STORE=lancedb`:
 
 1. Add documents to `apps/mcp-server/knowledge/` locally.
 2. From the repo root:
@@ -133,6 +157,9 @@ If you prefer not to call Voyage from the server:
 
 3. Upload `apps/mcp-server/data/lancedb/` → `/var/www/mcp-server/data/lancedb/`.
 4. `pm2 restart mcp-server` then `pm2 restart mcp-client`.
+
+With `VECTOR_STORE=postgres`, ingest against the same database the server uses
+(no file upload needed).
 
 ## Troubleshooting
 
@@ -190,14 +217,15 @@ handler, not the MCP transport:
 
 | Message (typical) | Fix |
 | --- | --- |
-| Knowledge base table not found | Run ingestion or upload `data/lancedb/` |
+| Knowledge base table not found | Run ingestion (LanceDB) or upload `data/lancedb/` |
+| Postgres connection / missing env | Check `VECTOR_STORE=postgres` and `POSTGRES_*` in `.env` |
 | No `.md`/`.txt` files found | Add files to `knowledge/` |
 | Voyage API errors | Check `VOYAGE_API_KEY` in mcp-server `.env` |
 
 ### Stale search results after ingest without restart
 
 If ingestion succeeded but answers still use old content, `mcp-server` may still
-have the previous LanceDB table cached in memory. Run `pm2 restart mcp-server`
+have a cached connection/table handle. Run `pm2 restart mcp-server`
 (and then `pm2 restart mcp-client`).
 
 ## Workflow summary
@@ -205,7 +233,7 @@ have the previous LanceDB table cached in memory. Run `pm2 restart mcp-server`
 ```text
 Add .md / .txt files  →  knowledge/
          ↓
-node dist/apps/mcp-server/mcp/knowledge/ingest.js
+node dist/apps/mcp-server/mcp/knowledge/ingest.js   # optional: --reset
          ↓
 pm2 restart mcp-server
          ↓
@@ -217,6 +245,7 @@ Refresh browser, new chat  →  search_knowledge_base uses new content
 ## Related docs
 
 - [rag-knowledge-base.md](./rag-knowledge-base.md) — RAG architecture, local ingest, env vars  
+- [postgres-knowledge-schema.md](./postgres-knowledge-schema.md) — Postgres + pgvector schema  
 - [deploy/DEPLOY.md](./deploy/DEPLOY.md) — full server deploy and first-time ingestion  
 - [testing-mcp-endpoint.md](./testing-mcp-endpoint.md) — curl tests for `POST /mcp/v1`  
 - `apps/mcp-server/.env.template` — RAG-related environment variables

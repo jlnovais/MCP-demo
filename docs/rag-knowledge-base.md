@@ -19,24 +19,27 @@ The feature is built from three libraries:
 | --- | --- | --- |
 | Chunking | [`llamaindex`](https://ts.llamaindex.ai/) | `SentenceSplitter` splits documents into overlapping chunks |
 | Embeddings | [`@llamaindex/voyage-ai`](https://docs.voyageai.com/) | Turns text into vectors (Anthropic's recommended embedding partner) |
-| Vector store | [`@lancedb/lancedb`](https://lancedb.github.io/lancedb/) | Embedded, file-based vector database — no external service to run |
+| Vector store | Postgres + pgvector **or** LanceDB | Selected with `VECTOR_STORE` in `.env` (`postgres` default; `lancedb` as file-based fallback) |
 
-> **Why LanceDB directly?** LlamaIndex.TS has no LanceDB adapter (it exists only
-> in the Python SDK), so we use LlamaIndex for chunking + the Voyage embedding
-> wrapper, and talk to `@lancedb/lancedb` directly for storage and search.
+> **Why a shared interface?** Storage is behind `KnowledgeVectorStore`. Ingest and
+> `search_knowledge_base` do not branch on backend. Postgres is the default;
+> LanceDB remains available as a file-based fallback when `VECTOR_STORE=lancedb`.
 
 There are two flows:
 
 **1. Ingestion (offline, run when documents change)**
 
 ```
-docs (.md/.txt) → SentenceSplitter (chunk) → Voyage (embed) → LanceDB table
+docs (.md/.txt/.pdf) → SentenceSplitter (chunk) → Voyage (embed) → vector store
 ```
+
+Default ingest **upserts by source file** (replaces chunks for files in the run).
+Pass `--reset` to delete all embeddings first.
 
 **2. Retrieval (at query time, inside the MCP tool)**
 
 ```
-user query → Voyage (embed query) → LanceDB vectorSearch → top-k snippets → Claude
+user query → Voyage (embed query) → vector search → top-k snippets → Claude
 ```
 
 Claude decides on its own when to call `search_knowledge_base` (agentic RAG),
@@ -46,11 +49,14 @@ based on the tool description — you do not need to change the client.
 
 | Path | Responsibility |
 | --- | --- |
-| `apps/mcp-server/src/mcp/knowledge/knowledge.service.ts` | `KnowledgeService`: `search()` and `ingestFromDirectory()` |
+| `apps/mcp-server/src/mcp/knowledge/knowledge.service.ts` | Chunking, embeddings, `search()` / `ingestFromDirectory()` |
+| `apps/mcp-server/src/mcp/knowledge/vector-store.interface.ts` | Shared store interface + DI token |
+| `apps/mcp-server/src/mcp/knowledge/lancedb-vector-store.ts` | LanceDB backend |
+| `apps/mcp-server/src/mcp/knowledge/postgres-vector-store.ts` | Postgres + pgvector backend |
 | `apps/mcp-server/src/mcp/knowledge/ingest.ts` | Standalone ingestion entrypoint |
 | `apps/mcp-server/src/mcp/tools/register-knowledge-tools.ts` | Registers the `search_knowledge_base` tool |
-| `apps/mcp-server/knowledge/` | Source documents (`.md` / `.markdown` / `.txt`) |
-| `apps/mcp-server/data/lancedb/` | Generated vector store (git-ignored) |
+| `apps/mcp-server/knowledge/` | Source documents (`.md` / `.markdown` / `.txt` / `.pdf`) |
+| `apps/mcp-server/data/lancedb/` | LanceDB files when `VECTOR_STORE=lancedb` (git-ignored) |
 
 ## Prerequisites
 
@@ -67,11 +73,17 @@ based on the tool description — you do not need to change the client.
    | --- | --- | --- |
    | `VOYAGE_API_KEY` | Voyage AI API key (**required** for embeddings) | — |
    | `VOYAGE_EMBED_MODEL` | Voyage embedding model | `voyage-3.5` |
-   | `LANCEDB_PATH` | Where LanceDB stores its files | `data/lancedb` |
-   | `LANCEDB_TABLE` | Table name for the knowledge vectors | `knowledge` |
+   | `VECTOR_STORE` | `postgres` or `lancedb` | `postgres` |
+   | `LANCEDB_PATH` | LanceDB directory (LanceDB mode) | `data/lancedb` |
+   | `LANCEDB_TABLE` | LanceDB table name | `knowledge` |
+   | `POSTGRES_HOST` / `PORT` / `USER` / `PASSWORD` / `DB` | Postgres connection (Postgres mode) | port `5432` |
+   | `POSTGRES_TABLE` | Postgres table name | `knowledge_chunks` |
 
    > `LANCEDB_PATH` is resolved relative to the process working directory, which
    > is `apps/mcp-server` when you use the `-w @mcp-demo/mcp-server` npm scripts.
+
+   For the Postgres table layout (auto-created), see
+   [postgres-knowledge-schema.md](./postgres-knowledge-schema.md).
 
 ## Step 1 — Add your documents
 
@@ -81,7 +93,7 @@ with two samples you can replace:
 - `wallet-concepts.md`
 - `wallet-faq.md`
 
-Supported extensions: `.md`, `.markdown`, `.txt`.
+Supported extensions: `.md`, `.markdown`, `.txt`, `.pdf`.
 
 ## Step 2 — Ingest (build the index)
 
@@ -91,21 +103,29 @@ From the repository root:
 npm run ingest:knowledge -w @mcp-demo/mcp-server
 ```
 
-To ingest from a different folder, pass a path:
+Upsert only (default): replaces chunks for source files present in the directory;
+leaves other sources in the store untouched.
+
+Full rebuild (delete all embeddings first):
+
+```bash
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --reset
+```
+
+To ingest from a different folder:
 
 ```bash
 npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs --reset
 ```
 
 On success you'll see something like:
 
 ```
-Ingesting knowledge base from: .../apps/mcp-server/knowledge
+Vector store: postgres
+Ingesting knowledge base from: .../apps/mcp-server/knowledge (upsert by source)
 Done. Indexed 7 chunks from 2 file(s).
 ```
-
-This (re)creates the LanceDB table at `LANCEDB_PATH`. Re-run it whenever your
-documents change — it drops and rebuilds the table each time.
 
 > **Note:** ingestion compiles the server first (`npm run build`) and runs the
 > compiled output. This is intentional: NestJS dependency injection relies on
@@ -179,11 +199,12 @@ curl -X POST "http://localhost:4000/mcp/v1" \
 
 | Symptom | Likely cause |
 | --- | --- |
-| `table "knowledge" was not found` | You haven't ingested yet — run `npm run ingest:knowledge -w @mcp-demo/mcp-server` |
+| `table "knowledge" was not found` | LanceDB mode and you haven't ingested yet — run `npm run ingest:knowledge -w @mcp-demo/mcp-server` |
+| Postgres connection / missing env errors | `VECTOR_STORE=postgres` but `POSTGRES_*` vars incomplete — see `.env.template` |
+| Dimension mismatch after changing model | Re-ingest with `--reset` (or drop LanceDB / truncate Postgres table) so all vectors share one model |
 | `Status code: 401` during ingest/search | `VOYAGE_API_KEY` missing or invalid in `apps/mcp-server/.env` |
 | `No .md/.markdown/.txt files found` | The knowledge folder is empty or the path arg is wrong |
 | Empty / irrelevant results | Re-ingest after adding docs; try a higher `topK`; ensure query and docs share vocabulary |
-| Dimension / mismatch errors after changing model | `VOYAGE_EMBED_MODEL` changed — delete `data/lancedb` and re-ingest so all vectors share one model |
 
 ## Tuning
 
@@ -198,8 +219,10 @@ Chunking and defaults live in `knowledge.service.ts`:
 
 ## Related docs
 
+- [Postgres knowledge schema](./postgres-knowledge-schema.md) — pgvector table, index, and ingest semantics
 - [Server knowledge ingestion](./server-knowledge-ingestion.md) — add docs on production server, restarts, troubleshooting
 - [Testing the MCP endpoint](./testing-mcp-endpoint.md) — curl-based verification
 - [Adding the MCP server to Claude Desktop](./claude-desktop.md) — connect a client
 - [Voyage AI docs](https://docs.voyageai.com/) — embedding models and limits
-- [LanceDB docs](https://lancedb.github.io/lancedb/) — vector store internals
+- [LanceDB docs](https://lancedb.github.io/lancedb/) — file-based vector store
+- [pgvector docs](https://github.com/pgvector/pgvector) — Postgres vector extension
