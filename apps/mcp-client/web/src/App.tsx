@@ -208,7 +208,7 @@ export function App() {
                   className={`badge-dot ${config.mcpConnected ? '' : 'offline'}`}
                 />
                 {config.mcpConnected
-                  ? `${config.toolCount} MCP tools`
+                  ? `${config.toolCount} tools · ${config.promptCount ?? 0} prompts`
                   : 'MCP offline'}
               </span>
             ) : null}
@@ -220,6 +220,7 @@ export function App() {
           <ChatWindow
             messages={messages}
             isStreaming={isStreaming}
+            prompts={config?.prompts ?? []}
             promptCacheTtl={config?.promptCacheTtl}
             onSend={(text) => void handleSend(text)}
           />

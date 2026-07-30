@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { DisplayMessage } from '../types';
+import type { DisplayMessage, PromptInfo } from '../types';
 import { MessageBubble } from './MessageBubble';
+import { PromptPicker } from './PromptPicker';
 import './ChatWindow.css';
 
 type ChatWindowProps = {
   messages: DisplayMessage[];
   isStreaming: boolean;
+  prompts?: PromptInfo[];
   promptCacheTtl?: '5m' | '1h';
   onSend: (message: string) => void;
 };
@@ -13,6 +15,7 @@ type ChatWindowProps = {
 export function ChatWindow({
   messages,
   isStreaming,
+  prompts = [],
   promptCacheTtl,
   onSend,
 }: ChatWindowProps) {
@@ -89,24 +92,34 @@ export function ChatWindow({
       </div>
 
       <div className="chat-input-area">
-        <form className="chat-input-form" onSubmit={handleSubmit}>
-          <textarea
-            ref={textareaRef}
-            value={input}
-            onChange={(event) => {
-              historyIndex.current = null;
-              setInput(event.target.value);
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about wallets, payments, or knowledge base…"
+        <div className="chat-input-form">
+          <PromptPicker
+            prompts={prompts}
             disabled={isStreaming}
-            rows={1}
+            onInject={onSend}
           />
-          <button type="submit" className="send-btn" disabled={isStreaming || !input.trim()}>
-            {isStreaming ? '…' : 'Send'}
-          </button>
-        </form>
-        <p className="chat-hint">Enter to send · Shift+Enter for new line</p>
+          <form className="chat-input-compose" onSubmit={handleSubmit}>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(event) => {
+                historyIndex.current = null;
+                setInput(event.target.value);
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about wallets, payments, or knowledge base…"
+              disabled={isStreaming}
+              rows={1}
+            />
+            <button type="submit" className="send-btn" disabled={isStreaming || !input.trim()}>
+              {isStreaming ? '…' : 'Send'}
+            </button>
+          </form>
+        </div>
+        <p className="chat-hint">
+          Enter to send · Shift+Enter for new line
+          {prompts.length > 0 ? ' · Prompts for MCP templates' : ''}
+        </p>
       </div>
     </div>
   );

@@ -37,7 +37,15 @@
   margin: 0 auto;
 }
 
-.chat-input-form textarea {
+.chat-input-compose {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.chat-input-compose textarea {
   flex: 1;
   min-height: 52px;
   max-height: 160px;
@@ -51,11 +59,11 @@
   transition: border-color 0.15s;
 }
 
-.chat-input-form textarea:focus {
+.chat-input-compose textarea:focus {
   border-color: var(--accent);
 }
 
-.chat-input-form textarea:disabled {
+.chat-input-compose textarea:disabled {
   opacity: 0.6;
 }
 
