@@ -1,5 +1,6 @@
 import type { BetaMessage } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { PromptInfo } from './common/prompts.js';
 
 export function color(text: string, code: number, style: number = 0): string {
   return `\x1b[${style};${code}m${text}\x1b[0m`;
@@ -8,6 +9,7 @@ export function color(text: string, code: number, style: number = 0): string {
 export type StartupBannerOptions = {
   model: string;
   tools: Tool[];
+  prompts: PromptInfo[];
   apiKey: string;
   promptCacheEnabled: boolean;
   promptCacheTtl: '5m' | '1h';
@@ -16,6 +18,7 @@ export type StartupBannerOptions = {
 export function printStartupBanner({
   model,
   tools,
+  prompts,
   apiKey,
   promptCacheEnabled,
   promptCacheTtl,
@@ -24,7 +27,9 @@ export function printStartupBanner({
     process.env.CLAUDE_THINKING_BUDGET &&
     Number(process.env.CLAUDE_THINKING_BUDGET) > 0;
 
-  console.log(`Connected to MCP server (${tools.length} tools available).`);
+  console.log(
+    `Connected to MCP server (${tools.length} tools, ${prompts.length} prompts available).`,
+  );
   console.log(`Claude model: ${model}`);
   console.log(
     `Api-key used: ${apiKey ? `${apiKey.substring(0, 12)}...${apiKey.substring(apiKey.length - 10)}` : ' *** no key defined in environment variable ANTHROPIC_API_KEY ***'}`,
@@ -52,8 +57,23 @@ export function printStartupBanner({
   } else {
     console.log('No tools available.');
   }
+
+  console.log('Available prompts:');
+  if (prompts.length > 0) {
+    for (const prompt of prompts) {
+      const label = prompt.title
+        ? `${prompt.name} (${prompt.title})`
+        : prompt.name;
+      const description = prompt.description ?? '(No description available)';
+      console.log(`- ${label}: ${description}`);
+    }
+    console.log('--------------------------------');
+  } else {
+    console.log('No prompts available.');
+  }
+
   console.log(
-    'Type your message and press Enter. Type "exit" or press Ctrl+C to quit.\n',
+    'Type your message and press Enter. Type "/prompts" to list prompts, "/prompt <name>" to fill one, or "exit" / Ctrl+C to quit.\n',
   );
 }
 

@@ -13,6 +13,7 @@ interface KnowledgeRow extends Record<string, unknown> {
   text: string;
   source: string;
   chunkIndex: number;
+  contentHash: string;
 }
 
 type KnowledgeSearchRow = KnowledgeRow & { _distance?: number };
@@ -82,6 +83,18 @@ export class LanceDbVectorStore implements KnowledgeVectorStore {
     }));
   }
 
+  async getSourceContentHashes(): Promise<Map<string, string>> {
+    const db = await this.connect();
+    const rows = await this.readAllRows(db);
+    const hashes = new Map<string, string>();
+    for (const row of rows) {
+      if (!hashes.has(row.source) && row.contentHash) {
+        hashes.set(row.source, row.contentHash);
+      }
+    }
+    return hashes;
+  }
+
   private async readAllRows(db: lancedb.Connection): Promise<KnowledgeRow[]> {
     const names = await db.tableNames();
     if (!names.includes(this.tableName)) {
@@ -94,6 +107,7 @@ export class LanceDbVectorStore implements KnowledgeVectorStore {
       text: String(row.text ?? ''),
       source: String(row.source ?? ''),
       chunkIndex: Number(row.chunkIndex ?? 0),
+      contentHash: String(row.contentHash ?? ''),
     }));
   }
 

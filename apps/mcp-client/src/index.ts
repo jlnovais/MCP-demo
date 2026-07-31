@@ -23,6 +23,7 @@ const app = await bootstrap({
 printStartupBanner({
   model: app.model,
   tools: app.tools,
+  prompts: app.prompts,
   apiKey: requireEnv('ANTHROPIC_API_KEY'),
   promptCacheEnabled: app.promptCacheEnabled,
   promptCacheTtl: app.promptCacheTtl,

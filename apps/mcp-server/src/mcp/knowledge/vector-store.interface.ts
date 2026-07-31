@@ -5,6 +5,8 @@ export interface KnowledgeChunk {
   text: string;
   source: string;
   chunkIndex: number;
+  /** SHA-256 of the source file's extracted text; shared by all chunks of that source. */
+  contentHash: string;
 }
 
 export interface KnowledgeSearchHit {
@@ -19,6 +21,8 @@ export interface KnowledgeVectorStore {
   readonly name: string;
   ensureReady(vectorDimensions: number): Promise<void>;
   search(queryVector: number[], topK: number): Promise<KnowledgeSearchHit[]>;
+  /** Map of source filename → contentHash. Empty if the store has no rows / no table. */
+  getSourceContentHashes(): Promise<Map<string, string>>;
   upsertBySource(chunks: KnowledgeChunk[]): Promise<void>;
   reset(): Promise<void>;
 }

@@ -1,10 +1,10 @@
 # Server knowledge ingestion and troubleshooting
 
 This guide covers how to add or update RAG documents on a **production Ubuntu
-server**, and how to recover when tool calls fail after ingestion or an
-`mcp-server` restart.
+server** (and briefly on your **local PC**), and how to recover when tool calls
+fail after ingestion or an `mcp-server` restart.
 
-For local development and how RAG works, see [rag-knowledge-base.md](./rag-knowledge-base.md).
+For RAG architecture and env vars, see [rag-knowledge-base.md](./rag-knowledge-base.md).
 For the full deploy workflow, see [deploy/DEPLOY.md](./deploy/DEPLOY.md).
 
 ## Overview
@@ -14,20 +14,55 @@ The `search_knowledge_base` MCP tool reads from the configured **vector store**
 ingestion embeds them with Voyage AI and writes the index.
 
 ```text
-knowledge/*.md  →  ingest.js  →  LanceDB or Postgres  →  search_knowledge_base tool
+knowledge/*  →  ingest  →  LanceDB or Postgres  →  search_knowledge_base tool
 ```
+
+Supported extensions: **`.md`**, **`.markdown`**, **`.txt`**, **`.pdf`**, **`.html`**.
+Flat folder only (no subfolders).
+
+Postgres mode stores embeddings in the database configured by `POSTGRES_*` (see
+[postgres-knowledge-schema.md](./postgres-knowledge-schema.md)).
+
+## Local development (PC)
+
+From the **repo root**, with `VOYAGE_API_KEY` and `VECTOR_STORE` / `POSTGRES_*`
+(or LanceDB) set in `apps/mcp-server/.env`:
+
+1. Put documents in `apps/mcp-server/knowledge/`.
+2. Ingest:
+
+   ```bash
+   npm run ingest:knowledge -w @mcp-demo/mcp-server
+   ```
+
+   Full wipe then re-embed everything:
+
+   ```bash
+   npm run ingest:knowledge -w @mcp-demo/mcp-server -- --reset
+   ```
+
+   Optional custom directory:
+
+   ```bash
+   npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs
+   npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs --reset
+   ```
+
+The script builds the server, then runs the ingest entrypoint. Default mode
+**upserts by source** (skips unchanged files by content hash). With Postgres,
+embeddings go to whatever DB your `.env` points at (local or remote). Restart
+`mcp-server` (and the client if needed) so search picks up the new index.
+
+## Production server
 
 On the server, paths are relative to the mcp-server deploy root
 (`/var/www/mcp-server`):
 
 | Path | Purpose |
 | --- | --- |
-| `knowledge/` | Source `.md` / `.markdown` / `.txt` / `.pdf` files |
+| `knowledge/` | Source documents |
 | `data/lancedb/` | LanceDB files when `VECTOR_STORE=lancedb` (from `LANCEDB_PATH`) |
 | `dist/apps/mcp-server/mcp/knowledge/ingest.js` | Ingestion entrypoint |
-
-Postgres mode stores embeddings in the database configured by `POSTGRES_*` (see
-[postgres-knowledge-schema.md](./postgres-knowledge-schema.md)).
 
 ## Prerequisites
 
@@ -65,11 +100,6 @@ Upload or edit files under:
 ```text
 /var/www/mcp-server/knowledge/
 ```
-
-Supported extensions: **`.md`**, **`.markdown`**, **`.txt`**.
-
-> **Flat folder only:** ingestion reads files **directly** in `knowledge/`, not
-> subfolders. Place all documents in that directory.
 
 You can upload via SCP/WinSCP, or add files in the repo under
 `apps/mcp-server/knowledge/` and re-run [`stage-deploy.ps1`](./deploy/stage-deploy.ps1)
@@ -146,17 +176,9 @@ pm2 restart mcp-client
 ## Alternative: ingest on PC, upload LanceDB
 
 If you prefer not to call Voyage from the server **and** you use
-`VECTOR_STORE=lancedb`:
-
-1. Add documents to `apps/mcp-server/knowledge/` locally.
-2. From the repo root:
-
-   ```bash
-   npm run ingest:knowledge -w @mcp-demo/mcp-server
-   ```
-
-3. Upload `apps/mcp-server/data/lancedb/` → `/var/www/mcp-server/data/lancedb/`.
-4. `pm2 restart mcp-server` then `pm2 restart mcp-client`.
+`VECTOR_STORE=lancedb`, run local ingest ([§ Local development](#local-development-pc)),
+upload `apps/mcp-server/data/lancedb/` → `/var/www/mcp-server/data/lancedb/`,
+then `pm2 restart mcp-server` and `pm2 restart mcp-client`.
 
 With `VECTOR_STORE=postgres`, ingest against the same database the server uses
 (no file upload needed).

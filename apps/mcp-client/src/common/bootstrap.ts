@@ -10,6 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client';
 import { resolveClaudeSamplingParams } from './claude-sampling.js';
 import { connectMcpClient } from './connection.js';
 import { requireEnv } from './env.js';
+import { listMcpPrompts, type PromptInfo } from './prompts.js';
 import { buildClassifierPrompt, buildSystemPrompt } from './system-prompt.js';
 import type { AppContext } from './types.js';
 
@@ -79,9 +80,18 @@ export async function bootstrap(
 
   let claudeTools: BetaRunnableTool<Record<string, unknown>>[] = [];
   let tools: Tool[] = [];
+  let prompts: PromptInfo[] = [];
   if (mcpClient) {
     ({ tools } = await mcpClient.listTools());
     claudeTools = mcpTools(tools, mcpClient as MCPClientLike);
+    try {
+      prompts = await listMcpPrompts(mcpClient);
+    } catch (error) {
+      console.warn(
+        'Failed to list MCP prompts:',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 
   const systemPrompt = buildSystemPrompt(tools);
@@ -96,10 +106,12 @@ export async function bootstrap(
     model,
     maxTokens,
     claudeTools,
+    mcpClient,
     transport,
     thinkingBudget,
     samplingParams,
     tools,
+    prompts,
     systemPrompt,
     classifierPrompt,
     classifierModel,

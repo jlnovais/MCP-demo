@@ -1,3 +1,14 @@
+export type PromptInfo = {
+  name: string;
+  title?: string;
+  description?: string;
+  arguments?: Array<{
+    name: string;
+    description?: string;
+    required?: boolean;
+  }>;
+};
+
 export type PromptCacheStats = {
   step: number;
   status: 'HIT' | 'WRITE' | 'MISS';
@@ -48,5 +59,7 @@ export type ServerConfig = {
   mcpConnected: boolean;
   toolCount: number;
   tools: Array<{ name: string; description: string }>;
+  promptCount: number;
+  prompts: PromptInfo[];
   promptCacheTtl: '5m' | '1h';
 };

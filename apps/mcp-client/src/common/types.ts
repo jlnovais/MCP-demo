@@ -1,18 +1,24 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import type { mcpTools } from '@anthropic-ai/sdk/helpers/beta/mcp';
+import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ClaudeSamplingParams } from './claude-sampling.js';
+import type { PromptInfo } from './prompts.js';
+
+export type { PromptInfo };
 
 export type AppContext = {
   anthropic: Anthropic;
   model: string;
   maxTokens: number;
   claudeTools: ReturnType<typeof mcpTools>;
+  mcpClient: Client | undefined;
   transport: StreamableHTTPClientTransport | undefined;
   thinkingBudget: number | undefined;
   samplingParams: ClaudeSamplingParams;
   tools: Tool[];
+  prompts: PromptInfo[];
   systemPrompt: string;
   classifierPrompt: string;
   classifierModel: string;
@@ -70,5 +76,7 @@ export type ServerConfig = {
   mcpConnected: boolean;
   toolCount: number;
   tools: Array<{ name: string; description: string }>;
+  promptCount: number;
+  prompts: PromptInfo[];
   promptCacheTtl: '5m' | '1h';
 };

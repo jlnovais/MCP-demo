@@ -5,6 +5,7 @@ import { createBasicAuthMiddleware } from './basic-auth.js';
 import { bootstrap } from './common/bootstrap.js';
 import { streamChatTurn } from './common/chat-engine.js';
 import { loadEnv, requireEnv } from './common/env.js';
+import { getMcpPromptMessage } from './common/prompts.js';
 import { SessionStore } from './common/sessions.js';
 import type { ChatStreamEvent, ServerConfig } from './common/types.js';
 
@@ -19,6 +20,38 @@ function parseChatMessage(body: unknown): string | undefined {
     return trimmed.length > 0 ? trimmed : undefined;
   }
   return undefined;
+}
+
+function parsePromptGetBody(
+  body: unknown,
+): { name: string; arguments: Record<string, string> } | undefined {
+  if (typeof body !== 'object' || body === null || !('name' in body)) {
+    return undefined;
+  }
+
+  const { name } = body;
+  if (typeof name !== 'string' || name.trim().length === 0) {
+    return undefined;
+  }
+
+  const argumentsRaw =
+    'arguments' in body &&
+    typeof body.arguments === 'object' &&
+    body.arguments !== null &&
+    !Array.isArray(body.arguments)
+      ? body.arguments
+      : {};
+
+  const args: Record<string, string> = {};
+  for (const [key, value] of Object.entries(argumentsRaw)) {
+    if (typeof value === 'string') {
+      args[key] = value;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      args[key] = String(value);
+    }
+  }
+
+  return { name: name.trim(), arguments: args };
 }
 
 loadEnv();
@@ -59,13 +92,15 @@ const serverConfig: ServerConfig = {
     name: tool.name,
     description: tool.description ?? '',
   })),
+  promptCount: appContext.prompts.length,
+  prompts: appContext.prompts,
   promptCacheTtl: appContext.promptCacheTtl,
 };
 
 console.log(`MCP web client running on http://localhost:${port}`);
 console.log(`Model: ${appContext.model}`);
 console.log(
-  `MCP: ${appContext.mcpConnected ? `${appContext.tools.length} tools` : 'not connected'}`,
+  `MCP: ${appContext.mcpConnected ? `${appContext.tools.length} tools, ${appContext.prompts.length} prompts` : 'not connected'}`,
 );
 console.log(
   `Prompt cache: ${appContext.promptCacheEnabled ? `enabled (TTL ${appContext.promptCacheTtl})` : 'disabled'}`,
@@ -77,6 +112,36 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/config', (_req, res) => {
   res.json(serverConfig);
+});
+
+app.get('/api/prompts', (_req, res) => {
+  res.json({ prompts: appContext.prompts });
+});
+
+app.post('/api/prompts/get', async (req, res) => {
+  if (!appContext.mcpClient) {
+    res.status(503).json({ error: 'MCP server is not connected' });
+    return;
+  }
+
+  const parsed = parsePromptGetBody(req.body);
+  if (!parsed) {
+    res.status(400).json({ error: 'Prompt name is required' });
+    return;
+  }
+
+  try {
+    const result = await getMcpPromptMessage(
+      appContext.mcpClient,
+      parsed.name,
+      parsed.arguments,
+    );
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 app.get('/api/sessions', (_req, res) => {

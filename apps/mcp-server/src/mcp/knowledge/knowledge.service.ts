@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { VoyageAIEmbedding } from '@llamaindex/voyage-ai';
@@ -14,7 +15,7 @@ import type { KnowledgeVectorStore } from './vector-store.interface';
 
 export type { KnowledgeSearchHit };
 
-const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt|pdf)$/i;
+const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt|pdf|html)$/i;
 const PDF_EXTENSION = /\.pdf$/i;
 const DEFAULT_TOP_K = 4;
 const DEFAULT_MODEL = 'voyage-3.5';
@@ -94,10 +95,19 @@ export class KnowledgeService {
     return fs.readFile(filePath, 'utf-8');
   }
 
+  private contentHash(content: string): string {
+    return createHash('sha256').update(content).digest('hex');
+  }
+
   async ingestFromDirectory(
     directory: string,
     options: IngestOptions = {},
-  ): Promise<{ files: number; chunks: number; reset: boolean }> {
+  ): Promise<{
+    files: number;
+    chunks: number;
+    skipped: number;
+    reset: boolean;
+  }> {
     const reset = options.reset === true;
 
     const entries = await fs.readdir(directory, { withFileTypes: true });
@@ -110,9 +120,13 @@ export class KnowledgeService {
 
     if (files.length === 0) {
       throw new Error(
-        `No .md/.markdown/.txt/.pdf files found to ingest in "${directory}".`,
+        `No .md/.markdown/.txt/.pdf/.html files found to ingest in "${directory}".`,
       );
     }
+
+    const existingHashes = reset
+      ? new Map<string, string>()
+      : await this.store.getSourceContentHashes();
 
     const splitter = new SentenceSplitter({
       chunkSize: DEFAULT_CHUNK_SIZE,
@@ -120,15 +134,26 @@ export class KnowledgeService {
     });
 
     const rows: KnowledgeChunk[] = [];
-    for (const fileName of files) {
-      this.logger.log(`Processing embedding for file: ${fileName}`);
+    let skipped = 0;
+    let emptySkipped = 0;
 
+    for (const fileName of files) {
       const filePath = path.join(directory, fileName);
       const content = (await this.extractText(filePath)).trim();
       if (!content) {
         this.logger.warn(`Skipping empty file: ${fileName}`);
+        emptySkipped += 1;
         continue;
       }
+
+      const hash = this.contentHash(content);
+      if (!reset && existingHashes.get(fileName) === hash) {
+        this.logger.log(`Skipping unchanged file: ${fileName}`);
+        skipped += 1;
+        continue;
+      }
+
+      this.logger.log(`Processing embedding for file: ${fileName}`);
 
       const nodes = splitter.getNodesFromDocuments([
         new Document({ text: content, metadata: { source: fileName } }),
@@ -146,13 +171,22 @@ export class KnowledgeService {
           text,
           source: fileName,
           chunkIndex: index,
+          contentHash: hash,
         });
         const textPreview = text.length > 80 ? `${text.slice(0, 80)}...` : text;
         this.logger.log(`  [${index}] chunk: "${textPreview}"`);
       });
     }
 
+    const processedFiles = files.length - skipped - emptySkipped;
+
     if (rows.length === 0) {
+      if (skipped > 0 && !reset) {
+        this.logger.log(
+          `All ${skipped} file(s) unchanged; nothing to re-embed`,
+        );
+        return { files: 0, chunks: 0, skipped, reset };
+      }
       throw new Error(`No content could be extracted from "${directory}".`);
     }
 
@@ -169,6 +203,6 @@ export class KnowledgeService {
 
     await this.store.upsertBySource(rows);
 
-    return { files: files.length, chunks: rows.length, reset };
+    return { files: processedFiles, chunks: rows.length, skipped, reset };
   }
 }

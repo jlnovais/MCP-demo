@@ -1,5 +1,6 @@
 import type {
   ChatStreamEvent,
+  PromptInfo,
   ServerConfig,
   SessionDetail,
   SessionSummary,
@@ -47,6 +48,23 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export function fetchConfig(): Promise<ServerConfig> {
   return request<ServerConfig>('/config');
+}
+
+export function fetchPrompts(): Promise<PromptInfo[]> {
+  return request<{ prompts: PromptInfo[] }>('/prompts').then(
+    (body) => body.prompts,
+  );
+}
+
+export function getPrompt(
+  name: string,
+  args: Record<string, string>,
+): Promise<{ message: string; description?: string }> {
+  return request<{ message: string; description?: string }>('/prompts/get', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, arguments: args }),
+  });
 }
 
 export function fetchSessions(): Promise<SessionSummary[]> {
