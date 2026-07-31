@@ -3,10 +3,7 @@ import { stdin as input, stdout as output } from 'node:process';
 import type { BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import type { AppContext } from './common/types.js';
 import { streamChatTurn } from './common/chat-engine.js';
-import {
-  getMcpPromptMessage,
-  type PromptInfo,
-} from './common/prompts.js';
+import { getMcpPromptMessage, type PromptInfo } from './common/prompts.js';
 import { color } from './io.js';
 
 const USER_COLOR = 34;
@@ -138,9 +135,7 @@ export async function runChat({
             break;
           case 'tool_result': {
             const label = event.isError ? '[tool error]' : '[tool result]';
-            process.stdout.write(
-              color(`${label} ${event.text}\n`, TOOL_COLOR),
-            );
+            process.stdout.write(color(`${label} ${event.text}\n`, TOOL_COLOR));
             break;
           }
           case 'prompt_cache':
