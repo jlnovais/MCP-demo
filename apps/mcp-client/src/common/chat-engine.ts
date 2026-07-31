@@ -103,8 +103,26 @@ function truncateToolResult(text: string): string {
   return `${text.slice(0, TOOL_RESULT_MAX_CHARS)}… (truncated)`;
 }
 
+function findToolName(
+  messages: BetaMessageParam[],
+  toolUseId: string,
+): string | undefined {
+  for (const message of messages) {
+    if (message.role !== 'assistant' || typeof message.content === 'string') {
+      continue;
+    }
+    for (const block of message.content) {
+      if (block.type === 'tool_use' && block.id === toolUseId) {
+        return block.name;
+      }
+    }
+  }
+  return undefined;
+}
+
 function* toolResultEvents(
   message: BetaMessageParam,
+  messages: BetaMessageParam[],
 ): Generator<ChatStreamEvent> {
   if (message.role !== 'user' || typeof message.content === 'string') {
     return;
@@ -117,6 +135,7 @@ function* toolResultEvents(
       type: 'tool_result',
       text: truncateToolResult(stringifyToolResultContent(block.content)),
       isError: block.is_error ?? false,
+      name: findToolName(messages, block.tool_use_id),
     };
   }
 }
@@ -178,11 +197,19 @@ async function isOutOfScope(
   }
 }
 
+export type StreamChatTurnOptions = {
+  /** When set, overrides env-based thinking for this turn. */
+  thinkingEnabled?: boolean;
+};
+
+const DEFAULT_THINKING_BUDGET = 1024;
+
 export async function streamChatTurn(
   ctx: ChatEngineContext,
   messages: BetaMessageParam[],
   userInput: string,
   onEvent: (event: ChatStreamEvent) => void,
+  options?: StreamChatTurnOptions,
 ): Promise<void> {
   // Skip the classifier when the assistant just asked the user for input; the
   // reply (e.g. a bare ID or "yes") lacks standalone context and would be
@@ -204,11 +231,16 @@ export async function streamChatTurn(
 
   messages.push({ role: 'user', content: userInput });
 
-  const thinkingBudget = ctx.thinkingBudget;
-  const thinkingConfig =
-    thinkingBudget !== undefined && thinkingBudget > 0
-      ? { type: 'enabled' as const, budget_tokens: thinkingBudget }
-      : undefined;
+  const thinkingEnabled =
+    options?.thinkingEnabled ??
+    (ctx.thinkingBudget !== undefined && ctx.thinkingBudget > 0);
+  const thinkingBudget =
+    ctx.thinkingBudget !== undefined && ctx.thinkingBudget > 0
+      ? ctx.thinkingBudget
+      : DEFAULT_THINKING_BUDGET;
+  const thinkingConfig = thinkingEnabled
+    ? { type: 'enabled' as const, budget_tokens: thinkingBudget }
+    : undefined;
 
   const runner = ctx.anthropic.beta.messages.toolRunner({
     model: ctx.model,
@@ -234,7 +266,10 @@ export async function streamChatTurn(
   for await (const stream of runner) {
     const currentMessages = runner.params.messages;
     for (let i = printedMessages; i < currentMessages.length; i++) {
-      for (const event of toolResultEvents(currentMessages[i])) {
+      for (const event of toolResultEvents(
+        currentMessages[i],
+        currentMessages,
+      )) {
         onEvent(event);
       }
     }
@@ -264,7 +299,7 @@ export async function streamChatTurn(
 
   const finalMessages = runner.params.messages;
   for (let i = printedMessages; i < finalMessages.length; i++) {
-    for (const event of toolResultEvents(finalMessages[i])) {
+    for (const event of toolResultEvents(finalMessages[i], finalMessages)) {
       onEvent(event);
     }
   }
@@ -299,6 +334,7 @@ function pushAssistantBlocks(
 function pushToolResultBlocks(
   blocks: MessageBlock[],
   content: BetaMessageParam['content'],
+  messages: BetaMessageParam[],
 ): void {
   if (!Array.isArray(content)) {
     return;
@@ -309,6 +345,7 @@ function pushToolResultBlocks(
         type: 'tool_result',
         text: truncateToolResult(stringifyToolResultContent(block.content)),
         isError: block.is_error ?? false,
+        name: findToolName(messages, block.tool_use_id),
       });
     }
   }
@@ -343,7 +380,7 @@ export function betaMessagesToDisplay(
       if (current.role === 'assistant') {
         pushAssistantBlocks(blocks, current.content);
       } else if (current.role === 'user') {
-        pushToolResultBlocks(blocks, current.content);
+        pushToolResultBlocks(blocks, current.content, messages);
       }
       index++;
     }

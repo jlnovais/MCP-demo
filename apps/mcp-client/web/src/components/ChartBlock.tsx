@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Bar,
   BarChart,
@@ -176,17 +177,31 @@ function CartesianChartView({ spec }: ChartBlockProps) {
   );
 }
 
-export function ChartBlock({ spec }: ChartBlockProps) {
+function specsEqual(a: ChartSpec, b: ChartSpec): boolean {
   return (
-    <div className="chart-block">
-      {spec.title ? <div className="chart-block-title">{spec.title}</div> : null}
-      <div className="chart-block-canvas">
-        {spec.type === 'pie' ? (
-          <PieChartView spec={spec} />
-        ) : (
-          <CartesianChartView spec={spec} />
-        )}
-      </div>
-    </div>
+    a.type === b.type &&
+    a.title === b.title &&
+    a.xKey === b.xKey &&
+    a.yKeys.length === b.yKeys.length &&
+    a.yKeys.every((key, index) => key === b.yKeys[index]) &&
+    JSON.stringify(a.data) === JSON.stringify(b.data)
   );
 }
+
+export const ChartBlock = memo(
+  function ChartBlock({ spec }: ChartBlockProps) {
+    return (
+      <div className="chart-block">
+        {spec.title ? <div className="chart-block-title">{spec.title}</div> : null}
+        <div className="chart-block-canvas">
+          {spec.type === 'pie' ? (
+            <PieChartView spec={spec} />
+          ) : (
+            <CartesianChartView spec={spec} />
+          )}
+        </div>
+      </div>
+    );
+  },
+  (prev, next) => specsEqual(prev.spec, next.spec),
+);

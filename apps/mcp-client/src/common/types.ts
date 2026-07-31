@@ -42,7 +42,7 @@ export type ChatStreamEvent =
   | { type: 'thinking'; delta: string }
   | { type: 'text'; delta: string }
   | { type: 'tool_use'; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; text: string; isError: boolean }
+  | { type: 'tool_result'; text: string; isError: boolean; name?: string }
   | { type: 'prompt_cache'; stats: PromptCacheStats }
   | { type: 'done' }
   | { type: 'error'; message: string };
@@ -51,7 +51,7 @@ export type MessageBlock =
   | { type: 'thinking'; text: string }
   | { type: 'text'; text: string }
   | { type: 'tool_use'; name: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; text: string; isError: boolean };
+  | { type: 'tool_result'; text: string; isError: boolean; name?: string };
 
 export type DisplayMessage = {
   id: string;

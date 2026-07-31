@@ -135,7 +135,10 @@ export async function runChat({
             break;
           case 'tool_result': {
             const label = event.isError ? '[tool error]' : '[tool result]';
-            process.stdout.write(color(`${label} ${event.text}\n`, TOOL_COLOR));
+            const toolName = event.name ? ` ${event.name}` : '';
+            process.stdout.write(
+              color(`${label}${toolName} ${event.text}\n`, TOOL_COLOR),
+            );
             break;
           }
           case 'prompt_cache':

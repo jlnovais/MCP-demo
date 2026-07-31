@@ -11,7 +11,11 @@ import { resolveClaudeSamplingParams } from './claude-sampling.js';
 import { connectMcpClient } from './connection.js';
 import { requireEnv } from './env.js';
 import { listMcpPrompts, type PromptInfo } from './prompts.js';
-import { buildClassifierPrompt, buildSystemPrompt } from './system-prompt.js';
+import {
+  buildClassifierPrompt,
+  buildSystemPrompt,
+  resolveSystemPromptFormat,
+} from './system-prompt.js';
 import type { AppContext } from './types.js';
 
 const DEFAULT_MAX_TOKENS = 4096;
@@ -94,7 +98,9 @@ export async function bootstrap(
     }
   }
 
-  const systemPrompt = buildSystemPrompt(tools);
+  const systemPromptFormat = resolveSystemPromptFormat();
+  console.log(`System prompt format: ${systemPromptFormat}`);
+  const systemPrompt = buildSystemPrompt(tools, systemPromptFormat);
   const classifierPrompt = buildClassifierPrompt(tools);
   const classifierModel = process.env.CLAUDE_CLASSIFIER_MODEL?.trim() || model;
   const classifierEnabled =

@@ -29,7 +29,12 @@ export function applyStreamEvent(
     case 'tool_result':
       return [
         ...blocks,
-        { type: 'tool_result', text: event.text, isError: event.isError },
+        {
+          type: 'tool_result',
+          text: event.text,
+          isError: event.isError,
+          name: event.name,
+        },
       ];
     default:
       return blocks;
