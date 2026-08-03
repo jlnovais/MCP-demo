@@ -135,7 +135,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 
 ---
 
-### 1. MCP resources
+### 1. MCP resources ⏳
 **What it is:** MCP has three primitives: tools (actions), prompts (reusable message templates), and **resources** (read-only data the client can fetch — files, docs, configs).
 
 **Today:** You register tools and one prompt (`create_mbway_payment`). Knowledge lives only behind `search_knowledge_base` (search), not as browsable resources.
@@ -144,7 +144,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 
 ---
 
-### 2. Prompts in the client
+### 2. Prompts in the client ✅ — Already implemented
 **What it is:** Server-defined prompt templates with args that expand into ready-made user messages.
 
 **Today:** `registerPrompt('create_mbway_payment', …)` exists on the server. The CLI/web client never calls `listPrompts` / `getPrompt` — users only free-type chat.
@@ -153,7 +153,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 
 ---
 
-### 3. BM25 or hybrid search
+### 3. BM25 or hybrid search ⏳
 **What it is:** **BM25** = keyword ranking (exact tokens, IDs, paths). **Hybrid** = combine BM25 scores with vector similarity.
 
 **Today:** Voyage embeddings + Postgres/LanceDB vector search only. Docs already say BM25 isn’t implemented and when it would help.
@@ -162,7 +162,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 
 ---
 
-### 4. Multi-index RAG
+### 4. Multi-index RAG ⏳
 **What it is:** Separate indexes (or collections) for different corpora, then route or search both.
 
 **Today:** One table/collection for all of `knowledge/` (Wallet + Mindshaker mixed).
@@ -175,7 +175,7 @@ Shows scaling RAG beyond a single bag of chunks (course “multi-index pipeline�
 
 ---
 
-### 5. Alternate chunkers
+### 5. Alternate chunkers ⏳
 **What it is:** How you split docs before embedding changes retrieval quality.
 
 **Today:** Fixed `SentenceSplitter` (512 chars, 64 overlap). Docs already describe `MarkdownNodeParser`, `TokenTextSplitter`, etc.
@@ -184,7 +184,7 @@ Shows scaling RAG beyond a single bag of chunks (course “multi-index pipeline�
 
 ---
 
-### 6. Prompt eval harness
+### 6. Prompt eval harness ⏳
 **What it is:** A repeatable test set + scoring for prompts/behavior — not a one-off chat check.
 
 **Today:** Scope classifier + rich system prompt, but almost no automated eval (only a dates unit test).
@@ -197,7 +197,7 @@ Print pass rate. Turns “prompt engineering” into something you can measure w
 
 ---
 
-### 7. XML-structured system prompts
+### 7. XML-structured system prompts ✅ — Already implemented
 **What it is:** Anthropic often recommends wrapping sections in XML-like tags (`<scope>`, `<rules>`, `<examples>`) so the model separates instructions cleanly.
 
 **Today:** `BASE_POLICY` uses markdown-ish sections and ALL-CAPS headers, not XML tags. Content is already clear/specific/with examples.
@@ -206,25 +206,33 @@ Print pass rate. Turns “prompt engineering” into something you can measure w
 
 ---
 
-### 8. Richer structured outputs
+### 8. Richer structured outputs 🟡 — Partially implemented
 **What it is:** Force the model to return data in a fixed schema (JSON), not free prose.
 
 **Today:** Soft structure — chart fenced blocks (`\`\`\`chart` + JSON) rendered by `ChartBlock`, plus Zod on **tool inputs**. No hard “always return this JSON schema” path for answers.
 
 **Demo:** e.g. a `format_wallet_summary` tool or a post-step that requires `{ balance, currency, userId, … }`, or stricter chart validation. Shows “structured data” as a first-class API pattern, not only UI convenience.
 
+**Already / not yet:**
+- ✅ Done: chart JSON contract in the system prompt; web UI parses `chart` fenced blocks and renders them (`ChartBlock` / `MarkdownContent`); Zod schemas on MCP tool inputs
+- ⏳ Still open: forced answer schemas (e.g. wallet summary JSON), dedicated structured-output tool, or stricter validation / rejection of invalid chart payloads
+
 ---
 
-### 9. Temperature / thinking comparison
+### 9. Temperature / thinking comparison 🟡 — Partially implemented
 **What it is:** Sampling (`temperature`) vs extended thinking (`thinking.budget_tokens`) change creativity vs deliberation.
 
 **Today:** Both exist via env (`CLAUDE_TEMPERATURE`, `CLAUDE_THINKING_BUDGET`) and thinking streams in the UI — but you restart/reconfigure to compare.
 
 **Demo:** UI toggles or presets (“Precise”, “Creative”, “Think hard”) on the same question (e.g. multi-step payment + knowledge Q). Show side-by-side or sequential runs. Makes API knobs tangible (note: thinking and non-default temperature don’t mix on the API — your code already warns about that).
 
+**Already / not yet:**
+- ✅ Done: extended thinking streams in the UI; per-session **thinking on/off** toggle (`thinkingEnabled` → `streamChatTurn`); budget still from `CLAUDE_THINKING_BUDGET` (with a default when enabling from the UI); temperature / top_p / top_k via env
+- ⏳ Still open: temperature (or sampling preset) controls in the UI; named presets (“Precise”, “Creative”, “Think hard”); easy side-by-side comparison without editing `.env`
+
 ---
 
-### 10. Explicit workflows
+### 10. Explicit workflows ⏳
 **What it is:** Fixed multi-step patterns vs a free agent loop:
 - **Routing** — classify then send to the right path  
 - **Chaining** — step A → B → C  
