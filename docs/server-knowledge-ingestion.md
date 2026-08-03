@@ -41,11 +41,18 @@ From the **repo root**, with `VOYAGE_API_KEY` and `VECTOR_STORE` / `POSTGRES_*`
    npm run ingest:knowledge -w @mcp-demo/mcp-server -- --reset
    ```
 
-   Optional custom directory:
+   Optional custom directory or chunker:
 
    ```bash
    npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs
    npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs --reset
+   npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker markdown --reset
+   ```
+
+   Offline chunker comparison (no Voyage):
+
+   ```bash
+   npm run compare:chunkers -w @mcp-demo/mcp-server
    ```
 
 The script builds the server, then runs the ingest entrypoint. Default mode
@@ -72,6 +79,11 @@ In `/var/www/mcp-server/.env`:
 VOYAGE_API_KEY=your-voyage-api-key
 VOYAGE_EMBED_MODEL=voyage-4
 VECTOR_STORE=postgres
+CHUNKER=sentence
+CHUNKER_TEXT=sentence
+CHUNKER_HTML=html
+CHUNKER_MARKDOWN=markdown
+CHUNKER_PDF=sentence
 POSTGRES_HOST=...
 POSTGRES_PORT=5432
 POSTGRES_USER=...

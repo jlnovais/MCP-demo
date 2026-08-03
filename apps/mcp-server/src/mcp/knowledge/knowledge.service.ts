@@ -4,8 +4,18 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { VoyageAIEmbedding } from '@llamaindex/voyage-ai';
-import { Document, SentenceSplitter } from 'llamaindex';
+import { Document } from 'llamaindex';
 import { PDFParse } from 'pdf-parse';
+import {
+  createNodeParser,
+  resolveChunker,
+  resolveChunkerForFile,
+  resolveFileType,
+  splitDocumentText,
+  type ChunkerEnvConfig,
+  type ChunkerName,
+  type KnowledgeNodeParser,
+} from './chunker';
 import {
   KNOWLEDGE_VECTOR_STORE,
   KnowledgeChunk,
@@ -19,12 +29,20 @@ const SUPPORTED_EXTENSIONS = /\.(md|markdown|txt|pdf|html)$/i;
 const PDF_EXTENSION = /\.pdf$/i;
 const DEFAULT_TOP_K = 4;
 const DEFAULT_MODEL = 'voyage-3.5';
-const DEFAULT_CHUNK_SIZE = 512;
-const DEFAULT_CHUNK_OVERLAP = 64;
 
 export interface IngestOptions {
   /** When true, delete all embeddings before writing. Default: false (upsert by source). */
   reset?: boolean;
+  /**
+   * Global chunker override (CLI `--chunker`). When set, applies to every file
+   * and ignores per-type `CHUNKER_*` env vars.
+   */
+  chunker?: ChunkerName;
+  /**
+   * When true, store source as `fileName#chunker` so different chunkers
+   * of the same file can coexist for side-by-side comparison.
+   */
+  tagChunker?: boolean;
 }
 
 @Injectable()
@@ -95,8 +113,23 @@ export class KnowledgeService {
     return fs.readFile(filePath, 'utf-8');
   }
 
-  private contentHash(content: string): string {
-    return createHash('sha256').update(content).digest('hex');
+  /** Hash content + chunker so changing CHUNKER_* invalidates skip-by-hash. */
+  private contentHash(content: string, chunker: ChunkerName): string {
+    return createHash('sha256')
+      .update(content)
+      .update('\0chunker:')
+      .update(chunker)
+      .digest('hex');
+  }
+
+  private loadChunkerEnvConfig(): ChunkerEnvConfig {
+    return {
+      default: this.config.get<string>('CHUNKER'),
+      text: this.config.get<string>('CHUNKER_TEXT'),
+      html: this.config.get<string>('CHUNKER_HTML'),
+      markdown: this.config.get<string>('CHUNKER_MARKDOWN'),
+      pdf: this.config.get<string>('CHUNKER_PDF'),
+    };
   }
 
   async ingestFromDirectory(
@@ -107,8 +140,22 @@ export class KnowledgeService {
     chunks: number;
     skipped: number;
     reset: boolean;
+    defaultChunker: ChunkerName;
   }> {
     const reset = options.reset === true;
+    const chunkerConfig = this.loadChunkerEnvConfig();
+    const defaultChunker = resolveChunker(undefined, chunkerConfig.default);
+    const tagChunker = options.tagChunker === true;
+    const parserCache = new Map<ChunkerName, KnowledgeNodeParser>();
+
+    const getParser = (chunker: ChunkerName): KnowledgeNodeParser => {
+      let parser = parserCache.get(chunker);
+      if (!parser) {
+        parser = createNodeParser(chunker);
+        parserCache.set(chunker, parser);
+      }
+      return parser;
+    };
 
     const entries = await fs.readdir(directory, { withFileTypes: true });
     const files = entries
@@ -128,10 +175,13 @@ export class KnowledgeService {
       ? new Map<string, string>()
       : await this.store.getSourceContentHashes();
 
-    const splitter = new SentenceSplitter({
-      chunkSize: DEFAULT_CHUNK_SIZE,
-      chunkOverlap: DEFAULT_CHUNK_OVERLAP,
-    });
+    this.logger.log(
+      `Default chunker: ${defaultChunker}` +
+        (options.chunker
+          ? ` (CLI override: ${options.chunker} for all files)`
+          : ' (per-type CHUNKER_* when set)') +
+        (tagChunker ? '; tagging sources as file#chunker' : ''),
+    );
 
     const rows: KnowledgeChunk[] = [];
     let skipped = 0;
@@ -146,30 +196,40 @@ export class KnowledgeService {
         continue;
       }
 
-      const hash = this.contentHash(content);
-      if (!reset && existingHashes.get(fileName) === hash) {
-        this.logger.log(`Skipping unchanged file: ${fileName}`);
+      const fileType = resolveFileType(fileName);
+      const chunker = resolveChunkerForFile(
+        fileName,
+        chunkerConfig,
+        options.chunker,
+      );
+      const source = tagChunker ? `${fileName}#${chunker}` : fileName;
+      const hash = this.contentHash(content, chunker);
+      if (!reset && existingHashes.get(source) === hash) {
+        this.logger.log(`Skipping unchanged file: ${source}`);
         skipped += 1;
         continue;
       }
 
-      this.logger.log(`Processing embedding for file: ${fileName}`);
+      this.logger.log(
+        `Processing embedding for file: ${source} (type=${fileType ?? 'unknown'}, chunker=${chunker})`,
+      );
 
-      const nodes = splitter.getNodesFromDocuments([
-        new Document({ text: content, metadata: { source: fileName } }),
-      ]);
-      const chunks = nodes
-        .map((node) => node.getText().trim())
-        .filter((text) => text.length > 0);
+      const chunks = await splitDocumentText(
+        getParser(chunker),
+        new Document({
+          text: content,
+          metadata: { source, chunker, fileType: fileType ?? 'unknown' },
+        }),
+      );
 
       const vectors = await this.embedModel.getTextEmbeddings(chunks);
-      this.logger.log(`Computed ${chunks.length} embeddings for ${fileName}`);
+      this.logger.log(`Computed ${chunks.length} embeddings for ${source}`);
       chunks.forEach((text, index) => {
         const vector = vectors[index];
         rows.push({
           vector,
           text,
-          source: fileName,
+          source,
           chunkIndex: index,
           contentHash: hash,
         });
@@ -185,7 +245,13 @@ export class KnowledgeService {
         this.logger.log(
           `All ${skipped} file(s) unchanged; nothing to re-embed`,
         );
-        return { files: 0, chunks: 0, skipped, reset };
+        return {
+          files: 0,
+          chunks: 0,
+          skipped,
+          reset,
+          defaultChunker,
+        };
       }
       throw new Error(`No content could be extracted from "${directory}".`);
     }
@@ -203,6 +269,12 @@ export class KnowledgeService {
 
     await this.store.upsertBySource(rows);
 
-    return { files: processedFiles, chunks: rows.length, skipped, reset };
+    return {
+      files: processedFiles,
+      chunks: rows.length,
+      skipped,
+      reset,
+      defaultChunker,
+    };
   }
 }
