@@ -87,12 +87,18 @@ export async function streamChat(
   sessionId: string,
   message: string,
   onEvent: (event: ChatStreamEvent) => void,
+  options?: { thinking?: boolean },
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/sessions/${sessionId}/chat`, {
     ...fetchOptions,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({
+      message,
+      ...(options?.thinking !== undefined
+        ? { thinking: options.thinking }
+        : {}),
+    }),
   });
 
   if (!response.ok) {

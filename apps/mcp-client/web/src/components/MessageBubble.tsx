@@ -317,12 +317,68 @@ function ThinkingBlock({ text }: { text: string }) {
       <button
         type="button"
         className="thinking-toggle"
+        aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
         <span>{open ? '▼' : '▶'}</span>
         <span>Thinking</span>
       </button>
       {open ? <div className="thinking-content">{text}</div> : null}
+    </div>
+  );
+}
+
+function ToolUseBlock({
+  name,
+  input,
+}: {
+  name: string;
+  input: Record<string, unknown>;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="tool-badge">
+      <button
+        type="button"
+        className="tool-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{open ? '▼' : '▶'}</span>
+        <span>⚙</span>
+        <span>Tool call</span>
+        <span className="tool-toggle-name">{name}</span>
+      </button>
+      {open ? <pre>{JSON.stringify(input, null, 2)}</pre> : null}
+    </div>
+  );
+}
+
+function ToolResultBlock({
+  text,
+  isError,
+  name,
+}: {
+  text: string;
+  isError: boolean;
+  name?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className={`tool-result ${isError ? 'error' : ''}`}>
+      <button
+        type="button"
+        className="tool-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span>{open ? '▼' : '▶'}</span>
+        <span>{isError ? 'Tool error' : 'Tool result'}</span>
+        {name ? <span className="tool-toggle-name">{name}</span> : null}
+      </button>
+      {open ? <div className="tool-result-content">{text}</div> : null}
     </div>
   );
 }
@@ -340,21 +396,14 @@ function BlockView({
     case 'thinking':
       return <ThinkingBlock text={block.text} />;
     case 'tool_use':
-      return (
-        <div className="tool-badge">
-          <div className="tool-badge-header">
-            <span>⚙</span>
-            <span>{block.name}</span>
-          </div>
-          <pre>{JSON.stringify(block.input, null, 2)}</pre>
-        </div>
-      );
+      return <ToolUseBlock name={block.name} input={block.input} />;
     case 'tool_result':
       return (
-        <div className={`tool-result ${block.isError ? 'error' : ''}`}>
-          <strong>{block.isError ? 'Tool error' : 'Tool result'}</strong>
-          <div>{block.text}</div>
-        </div>
+        <ToolResultBlock
+          text={block.text}
+          isError={block.isError}
+          name={block.name}
+        />
       );
     case 'text':
       return (

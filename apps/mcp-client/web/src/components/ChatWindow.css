@@ -32,13 +32,20 @@
 .chat-input-form {
   display: flex;
   gap: 12px;
-  align-items: flex-end;
+  align-items: flex-start;
   max-width: 900px;
   margin: 0 auto;
 }
 
-.chat-input-compose {
+.chat-input-main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chat-input-compose {
   display: flex;
   gap: 12px;
   align-items: flex-end;
@@ -67,6 +74,59 @@
   opacity: 0.6;
 }
 
+.chat-input-toolbar {
+  display: flex;
+  align-items: center;
+}
+
+.extended-thinking-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.extended-thinking-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.extended-thinking-btn.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.extended-thinking-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.thinking-toggle-icon {
+  flex-shrink: 0;
+}
+
+.extended-thinking-state {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.extended-thinking-btn.is-on .extended-thinking-state {
+  color: var(--accent-hover);
+}
+
 .send-btn {
   flex-shrink: 0;
   height: 52px;
@@ -93,5 +153,5 @@
   max-width: 900px;
   font-size: 0.75rem;
   color: var(--text-faint);
-  text-align: center;
+  text-align: left;
 }

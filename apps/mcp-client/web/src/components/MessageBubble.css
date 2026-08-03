@@ -80,48 +80,73 @@
 }
 
 .tool-badge {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
   border: 1px solid rgba(79, 209, 197, 0.25);
+  border-radius: var(--radius-sm);
   background: rgba(79, 209, 197, 0.08);
+  overflow: hidden;
   font-size: 0.8125rem;
-}
-
-.tool-badge-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--tool);
-  font-weight: 500;
-}
-
-.tool-badge pre {
-  margin: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.25);
-  overflow-x: auto;
-  font-size: 0.75rem;
-  color: var(--text-muted);
 }
 
 .tool-result {
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
   background: var(--bg-elevated);
+  overflow: hidden;
   font-size: 0.8125rem;
   color: var(--text-muted);
-  white-space: pre-wrap;
 }
 
 .tool-result.error {
   border-color: rgba(255, 107, 107, 0.35);
   background: rgba(255, 107, 107, 0.08);
   color: #ffb4b4;
+}
+
+.tool-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-align: left;
+}
+
+.tool-badge .tool-toggle {
+  color: var(--tool);
+}
+
+.tool-toggle-name {
+  opacity: 0.85;
+  font-weight: 400;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+}
+
+.tool-result .tool-toggle {
+  color: var(--text-muted);
+}
+
+.tool-result.error .tool-toggle {
+  color: #ffb4b4;
+}
+
+.tool-badge pre {
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.tool-result-content {
+  padding: 0 12px 12px;
+  white-space: pre-wrap;
 }
 
 .cache-stats {

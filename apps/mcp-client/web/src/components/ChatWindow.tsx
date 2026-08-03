@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import type { DisplayMessage, PromptInfo } from '../types';
+import { ChatInputArea } from './ChatInputArea';
 import { MessageBubble } from './MessageBubble';
-import { PromptPicker } from './PromptPicker';
 import './ChatWindow.css';
 
 type ChatWindowProps = {
@@ -9,80 +9,33 @@ type ChatWindowProps = {
   isStreaming: boolean;
   prompts?: PromptInfo[];
   promptCacheTtl?: '5m' | '1h';
+  thinkingEnabled: boolean;
+  onThinkingChange: (enabled: boolean) => void;
   onSend: (message: string) => void;
 };
+
+const MemoMessageBubble = memo(MessageBubble);
 
 export function ChatWindow({
   messages,
   isStreaming,
   prompts = [],
   promptCacheTtl,
+  thinkingEnabled,
+  onThinkingChange,
   onSend,
 }: ChatWindowProps) {
-  const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const sentHistory = useRef<string[]>([]);
-  const historyIndex = useRef<number | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isStreaming]);
 
-  useEffect(() => {
-    if (!isStreaming) {
-      textareaRef.current?.focus();
-    }
-  }, [isStreaming]);
-
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    const trimmed = input.trim();
-    if (!trimmed || isStreaming) {
-      return;
-    }
-    onSend(trimmed);
-    sentHistory.current.push(trimmed);
-    historyIndex.current = null;
-    setInput('');
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault();
-      handleSubmit(event);
-      return;
-    }
-
-    const history = sentHistory.current;
-    const isNavigating = historyIndex.current !== null;
-
-    if (event.key === 'ArrowUp' && history.length > 0 && (input === '' || isNavigating)) {
-      event.preventDefault();
-      const nextIndex = isNavigating ? Math.max(0, historyIndex.current! - 1) : history.length - 1;
-      historyIndex.current = nextIndex;
-      setInput(history[nextIndex]);
-      return;
-    }
-
-    if (event.key === 'ArrowDown' && isNavigating) {
-      event.preventDefault();
-      const nextIndex = historyIndex.current! + 1;
-      if (nextIndex >= history.length) {
-        historyIndex.current = null;
-        setInput('');
-      } else {
-        historyIndex.current = nextIndex;
-        setInput(history[nextIndex]);
-      }
-    }
-  };
-
   return (
     <div className="chat-window">
       <div className="messages">
         {messages.map((message) => (
-          <MessageBubble
+          <MemoMessageBubble
             key={message.id}
             message={message}
             promptCacheTtl={promptCacheTtl}
@@ -91,36 +44,13 @@ export function ChatWindow({
         <div ref={bottomRef} />
       </div>
 
-      <div className="chat-input-area">
-        <div className="chat-input-form">
-          <PromptPicker
-            prompts={prompts}
-            disabled={isStreaming}
-            onInject={onSend}
-          />
-          <form className="chat-input-compose" onSubmit={handleSubmit}>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(event) => {
-                historyIndex.current = null;
-                setInput(event.target.value);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask about wallets, payments, or knowledge base…"
-              disabled={isStreaming}
-              rows={1}
-            />
-            <button type="submit" className="send-btn" disabled={isStreaming || !input.trim()}>
-              {isStreaming ? '…' : 'Send'}
-            </button>
-          </form>
-        </div>
-        <p className="chat-hint">
-          Enter to send · Shift+Enter for new line
-          {prompts.length > 0 ? ' · Prompts for MCP templates' : ''}
-        </p>
-      </div>
+      <ChatInputArea
+        isStreaming={isStreaming}
+        prompts={prompts}
+        thinkingEnabled={thinkingEnabled}
+        onThinkingChange={onThinkingChange}
+        onSend={onSend}
+      />
     </div>
   );
 }

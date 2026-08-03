@@ -24,6 +24,23 @@ export function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [thinkingBySession, setThinkingBySession] = useState<
+    Record<string, boolean>
+  >({});
+
+  const thinkingEnabled = activeSessionId
+    ? (thinkingBySession[activeSessionId] ?? false)
+    : false;
+
+  const setThinkingEnabled = (enabled: boolean) => {
+    if (!activeSessionId) {
+      return;
+    }
+    setThinkingBySession((current) => ({
+      ...current,
+      [activeSessionId]: enabled,
+    }));
+  };
 
   const loadSessions = useCallback(async () => {
     const list = await fetchSessions();
@@ -137,36 +154,41 @@ export function App() {
     setError(null);
 
     try {
-      await streamChat(activeSessionId, text, (event) => {
-        if (event.type === 'error') {
-          setError(event.message);
-          return;
-        }
+      await streamChat(
+        activeSessionId,
+        text,
+        (event) => {
+          if (event.type === 'error') {
+            setError(event.message);
+            return;
+          }
 
-        setMessages((current) =>
-          current.map((message) => {
-            if (message.id !== assistantId) {
-              return message;
-            }
+          setMessages((current) =>
+            current.map((message) => {
+              if (message.id !== assistantId) {
+                return message;
+              }
 
-            if (event.type === 'done') {
-              return { ...message, streaming: false };
-            }
+              if (event.type === 'done') {
+                return { ...message, streaming: false };
+              }
 
-            if (event.type === 'prompt_cache') {
+              if (event.type === 'prompt_cache') {
+                return {
+                  ...message,
+                  cacheStats: [...(message.cacheStats ?? []), event.stats],
+                };
+              }
+
               return {
                 ...message,
-                cacheStats: [...(message.cacheStats ?? []), event.stats],
+                blocks: applyStreamEvent(message.blocks, event),
               };
-            }
-
-            return {
-              ...message,
-              blocks: applyStreamEvent(message.blocks, event),
-            };
-          }),
-        );
-      });
+            }),
+          );
+        },
+        { thinking: thinkingEnabled },
+      );
 
       const list = await loadSessions();
       setSessions(list);
@@ -222,6 +244,8 @@ export function App() {
             isStreaming={isStreaming}
             prompts={config?.prompts ?? []}
             promptCacheTtl={config?.promptCacheTtl}
+            thinkingEnabled={thinkingEnabled}
+            onThinkingChange={setThinkingEnabled}
             onSend={(text) => void handleSend(text)}
           />
         ) : (

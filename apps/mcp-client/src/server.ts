@@ -22,6 +22,18 @@ function parseChatMessage(body: unknown): string | undefined {
   return undefined;
 }
 
+function parseThinkingEnabled(body: unknown): boolean | undefined {
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    'thinking' in body &&
+    typeof body.thinking === 'boolean'
+  ) {
+    return body.thinking;
+  }
+  return undefined;
+}
+
 function parsePromptGetBody(
   body: unknown,
 ): { name: string; arguments: Record<string, string> } | undefined {
@@ -183,6 +195,8 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
     return;
   }
 
+  const thinkingEnabled = parseThinkingEnabled(req.body);
+
   sessions.touch(sessionId, message);
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -195,7 +209,9 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
   };
 
   try {
-    await streamChatTurn(appContext, messages, message, send);
+    await streamChatTurn(appContext, messages, message, send, {
+      ...(thinkingEnabled !== undefined ? { thinkingEnabled } : {}),
+    });
   } catch (error) {
     messages.pop();
     send({
