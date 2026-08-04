@@ -16,8 +16,6 @@ Here’s how those course topics map onto **this MCP-demo repo** (NestJS MCP ser
 | Response streaming | `stream: true` + SSE to the web UI |
 | Structured data (partial) | Chart JSON contract in the system prompt + `ChartBlock`; Zod schemas on MCP tools; classifier forced to one label |
 
-Course **exercises** / **satisfaction survey** are curriculum artifacts, not product features.
-
 ### Prompt engineering techniques
 Used in the live system prompt (not as a separate “course module”):
 - Clear & direct, specific scope rules
@@ -105,10 +103,8 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 16. **Claude Code + this MCP server** — doc/demo of using the same server from Claude Code  
 
 ### Poor / awkward fit for a Wallet MCP demo
-- Course satisfaction survey  
 - Computer use (desktop automation)  
 - Code execution + Files API (unless you invent a sandbox side-quest)  
-- Pure “chat exercise” worksheets (already covered by the live app)
 
 ---
 
