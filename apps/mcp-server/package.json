@@ -10,7 +10,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node ../../dist/apps/mcp-server/main",
-    "ingest:knowledge": "npm run build && node ../../dist/apps/mcp-server/mcp/knowledge/ingest.js"
+    "ingest:knowledge": "npm run build && node ../../dist/apps/mcp-server/mcp/knowledge/ingest.js",
+    "compare:chunkers": "npm run build && node ../../dist/apps/mcp-server/mcp/knowledge/compare-chunkers.js"
   },
   "dependencies": {
     "@app/api-common": "*",

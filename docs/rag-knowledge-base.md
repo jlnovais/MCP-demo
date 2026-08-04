@@ -17,7 +17,7 @@ The feature is built from three libraries:
 
 | Concern | Library | Notes |
 | --- | --- | --- |
-| Chunking | [`llamaindex`](https://ts.llamaindex.ai/) | `SentenceSplitter` splits documents into overlapping chunks |
+| Chunking | [`llamaindex`](https://ts.llamaindex.ai/) | Per-type via `CHUNKER` / `CHUNKER_*` (`sentence`, `markdown`, `html`) |
 | Embeddings | [`@llamaindex/voyage-ai`](https://docs.voyageai.com/) | Turns text into vectors (Anthropic's recommended embedding partner) |
 | Vector store | Postgres + pgvector **or** LanceDB | Selected with `VECTOR_STORE` in `.env` (`postgres` default; `lancedb` as file-based fallback) |
 
@@ -30,11 +30,12 @@ There are two flows:
 **1. Ingestion (offline, run when documents change)**
 
 ```
-docs (.md/.txt/.pdf) → SentenceSplitter (chunk) → Voyage (embed) → vector store
+docs (.md/.txt/.pdf/.html) → per-type chunker → Voyage (embed) → vector store
 ```
 
 Default ingest **upserts by source file** (replaces chunks for files in the run).
-Pass `--reset` to delete all embeddings first.
+Pass `--reset` to delete all embeddings first. Choose splitters with `CHUNKER` /
+`CHUNKER_*` or force one with `--chunker` (see [Tuning](#tuning)).
 
 **2. Retrieval (at query time, inside the MCP tool)**
 
@@ -50,6 +51,8 @@ based on the tool description — you do not need to change the client.
 | Path | Responsibility |
 | --- | --- |
 | `apps/mcp-server/src/mcp/knowledge/knowledge.service.ts` | Chunking, embeddings, `search()` / `ingestFromDirectory()` |
+| `apps/mcp-server/src/mcp/knowledge/chunker.ts` | File-type detection + `sentence` / `markdown` / `html` parsers |
+| `apps/mcp-server/src/mcp/knowledge/compare-chunkers.ts` | Offline side-by-side chunk preview (no Voyage) |
 | `apps/mcp-server/src/mcp/knowledge/vector-store.interface.ts` | Shared store interface + DI token |
 | `apps/mcp-server/src/mcp/knowledge/lancedb-vector-store.ts` | LanceDB backend |
 | `apps/mcp-server/src/mcp/knowledge/postgres-vector-store.ts` | Postgres + pgvector backend |
@@ -74,6 +77,11 @@ based on the tool description — you do not need to change the client.
    | `VOYAGE_API_KEY` | Voyage AI API key (**required** for embeddings) | — |
    | `VOYAGE_EMBED_MODEL` | Voyage embedding model | `voyage-3.5` |
    | `VECTOR_STORE` | `postgres` or `lancedb` | `postgres` |
+   | `CHUNKER` | Default splitter when a type key is unset | `sentence` |
+   | `CHUNKER_TEXT` | `.txt` files | inherits `CHUNKER` |
+   | `CHUNKER_HTML` | `.html` files (`html` strips tags) | inherits `CHUNKER` |
+   | `CHUNKER_MARKDOWN` | `.md` / `.markdown` | inherits `CHUNKER` |
+   | `CHUNKER_PDF` | `.pdf` files | inherits `CHUNKER` |
    | `LANCEDB_PATH` | LanceDB directory (LanceDB mode) | `data/lancedb` |
    | `LANCEDB_TABLE` | LanceDB table name | `knowledge` |
    | `POSTGRES_HOST` / `PORT` / `USER` / `PASSWORD` / `DB` | Postgres connection (Postgres mode) | port `5432` |
@@ -93,7 +101,7 @@ with two samples you can replace:
 - `wallet-concepts.md`
 - `wallet-faq.md`
 
-Supported extensions: `.md`, `.markdown`, `.txt`, `.pdf`.
+Supported extensions: `.md`, `.markdown`, `.txt`, `.pdf`, `html`, `htm`.
 
 ## Step 2 — Ingest (build the index)
 
@@ -117,6 +125,27 @@ To ingest from a different folder:
 ```bash
 npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs
 npm run ingest:knowledge -w @mcp-demo/mcp-server -- ./path/to/docs --reset
+```
+
+Force one chunker for every file (overrides per-type env):
+
+```bash
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker markdown --reset
+```
+
+Side-by-side demo (both chunkers in one store — sources become `file#sentence` /
+`file#markdown`):
+
+```bash
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker sentence --tag-chunker
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker markdown --tag-chunker
+```
+
+Compare how the same FAQ splits **without** embedding (no Voyage key needed):
+
+```bash
+npm run compare:chunkers -w @mcp-demo/mcp-server
+npm run compare:chunkers -w @mcp-demo/mcp-server -- knowledge/wallet-faq.md
 ```
 
 On success you'll see something like:
@@ -208,14 +237,25 @@ curl -X POST "http://localhost:4000/mcp/v1" \
 
 ## Tuning
 
-Chunking and defaults live in `knowledge.service.ts`:
+Chunking lives in `chunker.ts` / `knowledge.service.ts`. Each file picks a
+splitter from its type env, then `CHUNKER`, then `sentence`:
 
-| Constant | Default | Effect |
+| Setting | Default | Effect |
 | --- | --- | --- |
-| `DEFAULT_CHUNK_SIZE` | `512` | Larger = more context per chunk, fewer chunks |
-| `DEFAULT_CHUNK_OVERLAP` | `64` | Overlap preserves context across chunk boundaries |
+| `CHUNKER` | `sentence` | Fallback for unset type keys / unknown types |
+| `CHUNKER_TEXT` / `_HTML` / `_MARKDOWN` / `_PDF` | inherit | Per-extension splitter |
+| `sentence` | — | `SentenceSplitter` (512 / 64) |
+| `markdown` | — | `MarkdownNodeParser` (`#` / `##`) |
+| `html` | — | `HTMLNodeParser` (strip tags / script / style) |
+| `--chunker` | off | Force one splitter for the whole ingest run |
+| `--tag-chunker` | off | Store source as `fileName#chunker` so splitters can coexist |
 | `DEFAULT_TOP_K` | `4` | How many snippets are returned by default |
 | `DEFAULT_MODEL` | `voyage-3.5` | Embedding model (overridable via `VOYAGE_EMBED_MODEL`) |
+
+**Demo tip:** `wallet-faq.md` is short enough that `sentence` often yields one
+chunk, while `markdown` yields one chunk per `##` section — then search the same
+query and compare which sources/snippets come back. For `.html`, prefer
+`CHUNKER_HTML=html` so markup is not embedded.
 
 ## Related docs
 

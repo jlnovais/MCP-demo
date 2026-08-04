@@ -47,6 +47,8 @@ cp apps/mcp-client/.env.template apps/mcp-client/.env
 | `VOYAGE_API_KEY` | Voyage AI key for `search_knowledge_base` |
 | `VOYAGE_EMBED_MODEL` | Embedding model (default `voyage-4`) |
 | `VECTOR_STORE` | `postgres` (default) or `lancedb` |
+| `CHUNKER` | Default ingest splitter: `sentence` (default), `markdown`, or `html` |
+| `CHUNKER_TEXT` / `CHUNKER_HTML` / `CHUNKER_MARKDOWN` / `CHUNKER_PDF` | Optional per-file-type overrides (inherit `CHUNKER` when empty) |
 | `POSTGRES_*` | Postgres connection when `VECTOR_STORE=postgres` |
 | `LANCEDB_*` | LanceDB path/table when `VECTOR_STORE=lancedb` |
 
@@ -144,6 +146,10 @@ The `search_knowledge_base` tool adds Retrieval-Augmented Generation (RAG) over 
 
 ```bash
 npm run ingest:knowledge -w @mcp-demo/mcp-server
+# optional: markdown header chunking
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker markdown --reset
+# offline chunk preview (no Voyage)
+npm run compare:chunkers -w @mcp-demo/mcp-server
 ```
 
 See [docs/rag-knowledge-base.md](docs/rag-knowledge-base.md) for full setup.

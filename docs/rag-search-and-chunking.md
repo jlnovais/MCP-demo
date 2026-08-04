@@ -8,14 +8,14 @@ Elasticsearch). It complements [rag-knowledge-base.md](./rag-knowledge-base.md).
 
 | Stage | Choice |
 | --- | --- |
-| Chunking | `SentenceSplitter` (LlamaIndex) — 512 chars, 64 overlap |
+| Chunking | Per-type via `CHUNKER` / `CHUNKER_*` (`sentence`, `markdown`, `html`) |
 | Embeddings | Voyage AI (`voyage-3.5`) |
-| Search | **Vector / semantic search only** via LanceDB `vectorSearch()` |
+| Search | **Vector / semantic search only** via configured vector store |
 | Lexical search | Not implemented |
 
 ```text
-ingest:  docs → SentenceSplitter → Voyage (embed) → LanceDB
-query:   user question → Voyage (embed query) → LanceDB vectorSearch → top-k chunks
+ingest:  docs → per-type chunker → Voyage (embed) → vector store
+query:   user question → Voyage (embed query) → vector search → top-k chunks
 ```
 
 ---
@@ -60,9 +60,10 @@ This project uses vector search through **Voyage AI** (embeddings) and
 ## Text splitters (LlamaIndex)
 
 During ingestion, documents are split into **chunks** before embedding. The
-splitter lives in `knowledge.service.ts` and is imported from `llamaindex`.
+factory lives in `chunker.ts`. Each file type can pick a splitter via env
+(`CHUNKER_MARKDOWN`, `CHUNKER_HTML`, …) with `CHUNKER` as fallback.
 
-### `SentenceSplitter` (current default)
+### `SentenceSplitter` (default fallback)
 
 Splits text while respecting structure: paragraphs → sentences → words, with
 configurable `chunkSize` and `chunkOverlap`.
@@ -80,15 +81,56 @@ const nodes = splitter.getNodesFromDocuments([
 ]);
 ```
 
-**Best for:** general text and mixed `.md` / `.txt` files.
+**Best for:** general text, PDF extract, and `.txt` files.
+
+```bash
+# .env
+CHUNKER=sentence
+CHUNKER_TEXT=sentence
+CHUNKER_PDF=sentence
+
+# or force for one run
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker sentence
+```
 
 ### `MarkdownNodeParser`
 
 Splits markdown by **headers** (`#`, `##`, …), preserving section hierarchy in
-node metadata (e.g. `"Header 1": "Refund policy"`).
+node metadata (e.g. `"Header_2": "Refund policy"`).
 
-**Best for:** long, structured markdown FAQs and docs. Often improves retrieval
-when sections are clearly headed.
+**Best for:** structured markdown FAQs and docs.
+
+```bash
+# .env (recommended for .md)
+CHUNKER_MARKDOWN=markdown
+
+# or one-off for all files
+npm run ingest:knowledge -w @mcp-demo/mcp-server -- --chunker markdown --reset
+```
+
+### `HTMLNodeParser`
+
+Strips HTML tags (and typically script/style) into readable text before
+embedding. In the current LlamaIndex version this often yields one cleaned
+node per page rather than many section chunks — still preferable to embedding
+raw markup.
+
+**Best for:** `.html` knowledge files.
+
+```bash
+CHUNKER_HTML=html
+```
+
+Offline preview (no Voyage):
+
+```bash
+npm run compare:chunkers -w @mcp-demo/mcp-server
+npm run compare:chunkers -w @mcp-demo/mcp-server -- knowledge/some-page.html
+```
+
+To keep **multiple** embeddings of the same file in one store, pass
+`--tag-chunker` so sources become `wallet-faq.md#sentence` and
+`wallet-faq.md#markdown`.
 
 ### `TokenTextSplitter`
 
@@ -110,13 +152,14 @@ Deprecated — use `SentenceSplitter` instead.
 
 | Splitter | Split strategy | Typical use in this repo |
 | --- | --- | --- |
-| `SentenceSplitter` | Sentences / paragraphs | Default — good enough for current `knowledge/` |
-| `MarkdownNodeParser` | Markdown headers | Upgrade if section-based `.md` retrieval is weak |
-| `TokenTextSplitter` | Token limits | Only if char-based chunks misalign with Voyage limits |
-| `CodeSplitter` | AST | Not needed for current wallet/Mindshaker docs |
+| `SentenceSplitter` | Sentences / paragraphs | `CHUNKER` / `CHUNKER_TEXT` / `CHUNKER_PDF` |
+| `MarkdownNodeParser` | Markdown headers | `CHUNKER_MARKDOWN=markdown` |
+| `HTMLNodeParser` | Strip HTML tags | `CHUNKER_HTML=html` |
+| `TokenTextSplitter` | Token limits | Not wired |
+| `CodeSplitter` | AST | Not needed for current docs |
 
-All implement the same node-parser interface (`getNodesFromDocuments`), so
-switching splitters does not change the rest of the ingest pipeline.
+Wired splitters share `getNodesFromDocuments` via `chunker.ts`, so switching
+does not change the rest of the ingest pipeline.
 
 ---
 
@@ -173,8 +216,10 @@ policies, and how-to** content. That fits **semantic / vector search** well.
 
 ### Cheaper improvements before BM25
 
-1. Switch to **`MarkdownNodeParser`** for section-based `.md` files.
-2. Tune **chunk size / overlap** (defaults: 512 / 64).
+1. Switch to **`MarkdownNodeParser`** (`CHUNKER_MARKDOWN=markdown`) for
+   section-based `.md` files; use **`HTMLNodeParser`** (`CHUNKER_HTML=html`) for
+   HTML.
+2. Tune **chunk size / overlap** (sentence defaults: 512 / 64).
 3. Store richer **metadata** (source file, section title) on each chunk.
 
 Add lexical or hybrid search only when real queries show gaps, or when the
