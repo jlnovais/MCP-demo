@@ -55,7 +55,7 @@ Used in the live system prompt (not as a separate “course module”):
 | MCP intro, clients, setup | Core of the repo |
 | Defining tools | Many Wallet / utility / knowledge tools |
 | Implementing a client | CLI + web MCP client |
-| Defining prompts | `create_mbway_payment` via `registerPrompt` |
+| Defining prompts | `create_mbway_payment`, `create_and_verify_mbway_payment`, `cancel_payment_workflow` via `registerPrompt` |
 | Server inspector | Covered via curl / testing docs (not a built-in Inspector UI) |
 | Prompts **in the client** | **Done** — web `PromptPicker` + `/prompts` API; CLI `/prompts` and `/prompt <name>` |
 | Defining / accessing **resources** | **Not** present |
@@ -92,7 +92,7 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 7. **XML-structured system prompts** ✅ — `SYSTEM_PROMPT_FORMAT=xml|markdown`  
 8. **Richer structured outputs** 🟡 — chart fenced blocks done; forced answer schemas still open  
 9. **Temperature / thinking comparison** 🟡 — thinking UI toggle done; temperature presets still open  
-10. **Explicit workflows** — chaining (list → get → cancel payment) and routing (classifier already starts this)
+10. **Explicit workflows** 🟡 — chaining prompts done (`create_and_verify_mbway_payment`, `cancel_payment_workflow`); routing/parallel still open
 
 ### Medium fit
 11. **Anthropic Citations API** on RAG answers  
@@ -135,7 +135,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 ### 1. MCP resources ⏳
 **What it is:** MCP has three primitives: tools (actions), prompts (reusable message templates), and **resources** (read-only data the client can fetch — files, docs, configs).
 
-**Today:** You register tools and one prompt (`create_mbway_payment`). Knowledge lives only behind `search_knowledge_base` (search), not as browsable resources. Client prompts are implemented (#2).
+**Today:** You register tools and prompts (`create_mbway_payment`, chaining workflows). Knowledge lives only behind `search_knowledge_base` (search), not as browsable resources. Client prompts are implemented (#2).
 
 **Demo:** Expose `apps/mcp-server/knowledge/*.md` (or wallet FAQ sections) as MCP resources (`wallet://docs/refund-policy`, etc.). Claude Desktop or your client can list/read them without a vector search. Shows the “data” side of MCP next to tools.
 
@@ -144,7 +144,7 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 ### 2. Prompts in the client ✅ — Already implemented
 **What it is:** Server-defined prompt templates with args that expand into ready-made user messages.
 
-**Today:** `registerPrompt('create_mbway_payment', …)` on the server. Web UI has `PromptPicker` (list → fill args → inject message). CLI supports `/prompts` and `/prompt <name>`. API: `GET /api/prompts`, `POST /api/prompts/get`.
+**Today:** `registerPrompt` for `create_mbway_payment` plus chaining prompts `create_and_verify_mbway_payment` and `cancel_payment_workflow`. Web UI has `PromptPicker` (list → fill args → inject message). CLI supports `/prompts` and `/prompt <name>`. API: `GET /api/prompts`, `POST /api/prompts/get`.
 
 **Demo (done):** Choose MB WAY payment → fill `userId`, `amount`, phone → inject the filled prompt into the conversation.
 
@@ -231,17 +231,17 @@ Print pass rate. Turns “prompt engineering” into something you can measure w
 
 ---
 
-### 10. Explicit workflows ⏳
+### 10. Explicit workflows 🟡
 **What it is:** Fixed multi-step patterns vs a free agent loop:
 - **Routing** — classify then send to the right path  
 - **Chaining** — step A → B → C  
 - **Parallelization** — run independent steps together  
 
-**Today:** One agentic `toolRunner` loop. Light routing via the scope classifier. No named “workflow” demos.
+**Today:** One agentic `toolRunner` loop. Light routing via the scope classifier. **Chaining demos** exist as MCP prompts (still prompt-guided, not a code-enforced engine).
 
 **Demo ideas that reuse Wallet tools:**
 - **Routing:** out-of-scope refuse vs RAG vs wallet tools (you’re halfway there)  
-- **Chaining:** guided “create payment → get payment → show status” (could reuse the MCP prompt)  
+- **Chaining:** ✅ `create_and_verify_mbway_payment` (create → get → report) and `cancel_payment_workflow` (list → get → cancel) in `register-payments-prompts.ts`  
 - **Parallel:** e.g. `get_wallet` + `get_exchange_rate` + `search_knowledge_base` in one turn and explain when the model parallelizes tool calls  
 
 Frames “agent vs workflow” using tools you already have.
@@ -284,7 +284,7 @@ Status check against the high-fit demos and related work found in the repo (comm
 | **3** | BM25 / hybrid search | Still vector-only |
 | **4** | Multi-index RAG | Still one corpus; backends are selectable (Postgres **or** LanceDB), not separate Wallet vs Mindshaker indexes |
 | **6** | Prompt eval harness | Still no datasets / graders for scope or RAG (chunker + dates unit tests only) |
-| **10** | Explicit workflows | Still free agentic `toolRunner` loop + light scope classifier |
+| **10** | Explicit workflows | **Partially done** — chaining MCP prompts (`create_and_verify_mbway_payment`, `cancel_payment_workflow`). Routing still light classifier only; parallel demo still open. |
 
 ### Other related work already landed (not in the original high-fit list)
 
