@@ -7,6 +7,80 @@ function joinLines(lines: Array<string | undefined>): string {
 
 export function registerPaymentsPrompts(server: McpServer): void {
   server.registerPrompt(
+    'create_mb_payment',
+    {
+      title: 'Create MB Payment',
+      description:
+        'Guided workflow to create an MB payment request via the Wallet API.',
+      argsSchema: {
+        userId: z.string().describe('User ID associated with the merchant.'),
+        amount: z.coerce.number().describe('Amount in euros to charge.'),
+        customerName: z.string().describe('Customer full name.'),
+        customerEmail: z.string().describe('Customer email address.'),
+        expirationMinutes: z.coerce
+          .number()
+          .describe('Expiration for MB reference - in minutes.')
+          .min(1),
+        merchantId: z
+          .string()
+          .optional()
+          .describe(
+            'Merchant ID. Required for admin accounts; ignored for non-admin accounts.',
+          ),
+        description: z
+          .string()
+          .optional()
+          .describe('Payment description (optional) .'),
+      },
+    },
+    (args) => {
+      console.log('[MCP] prompts/get: create_mbway_payment', args);
+      const {
+        userId,
+        amount,
+        customerName,
+        customerEmail,
+        expirationMinutes,
+        description,
+        merchantId,
+      } = args;
+      return {
+        messages: [
+          {
+            role: 'user',
+            content: {
+              type: 'text',
+              text: joinLines([
+                'Create an MB payment using the create_payment tool with these parameters:',
+                '',
+                '- type: MB',
+                `- userId: ${userId}`,
+                `- amount: ${amount}`,
+                '- credits: 0',
+                `- customerName: ${customerName}`,
+                `- customerEmail: ${customerEmail}`,
+                `- expirationMinutes: ${expirationMinutes}`,
+                `- description: ${description}`,
+                merchantId ? `- merchantId: ${merchantId}` : undefined,
+                `- inApp: ignore this parameter`,
+                `- isAuthorization: ignore this parameter`,
+                ``,
+                `If the request was successful, the response will have the following fields:`,
+                `- paymentId: The Hashids-encoded payment id.`,
+                `- reference: The reference of the payment.`,
+                `- amount: The amount of the payment in euros.`,
+                `- entity: The multibanco entity used to generate the payment.`,
+                ``,
+                `In the response add a message saying "The payment has been created successfully. Please pay in an ATM or online banking with the provided details within ${expirationMinutes} minutes."`,
+              ]),
+            },
+          },
+        ],
+      };
+    },
+  );
+
+  server.registerPrompt(
     'create_mbway_payment',
     {
       title: 'Create MB WAY Payment',
