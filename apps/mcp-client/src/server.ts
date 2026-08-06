@@ -6,8 +6,22 @@ import { bootstrap } from './common/bootstrap.js';
 import { streamChatTurn } from './common/chat-engine.js';
 import { loadEnv, requireEnv } from './common/env.js';
 import { getMcpPromptMessage } from './common/prompts.js';
+import {
+  formatResourceInjectMessage,
+  readMcpResource,
+} from './common/mcp-resources.js';
 import { SessionStore } from './common/sessions.js';
-import type { ChatStreamEvent, ServerConfig } from './common/types.js';
+import type {
+  AppContext,
+  ChatStreamEvent,
+  McpResourceSummary,
+  ServerConfig,
+} from './common/types.js';
+
+function getResources(ctx: { resources?: unknown }): McpResourceSummary[] {
+  const value = (ctx as Record<string, unknown>)['resources'];
+  return Array.isArray(value) ? (value as McpResourceSummary[]) : [];
+}
 
 function parseChatMessage(body: unknown): string | undefined {
   if (
@@ -66,6 +80,19 @@ function parsePromptGetBody(
   return { name: name.trim(), arguments: args };
 }
 
+function parseResourceReadBody(body: unknown): { uri: string } | undefined {
+  if (typeof body !== 'object' || body === null || !('uri' in body)) {
+    return undefined;
+  }
+
+  const { uri } = body;
+  if (typeof uri !== 'string' || uri.trim().length === 0) {
+    return undefined;
+  }
+
+  return { uri: uri.trim() };
+}
+
 loadEnv();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,7 +109,7 @@ app.use(express.json());
 app.use(createBasicAuthMiddleware(webUsername, webPassword));
 
 const sessions = new SessionStore();
-let appContext: Awaited<ReturnType<typeof bootstrap>>;
+let appContext: AppContext;
 
 try {
   appContext = await bootstrap({
@@ -96,26 +123,43 @@ try {
   process.exit(1);
 }
 
+const {
+  model,
+  mcpConnected,
+  tools,
+  prompts,
+  promptCacheTtl,
+  promptCacheEnabled,
+} = appContext;
+
+const resources = getResources(appContext);
+
 const serverConfig: ServerConfig = {
-  model: appContext.model,
-  mcpConnected: appContext.mcpConnected,
-  toolCount: appContext.tools.length,
-  tools: appContext.tools.map((tool) => ({
+  model,
+  mcpConnected,
+  toolCount: tools.length,
+  tools: tools.map((tool) => ({
     name: tool.name,
     description: tool.description ?? '',
   })),
-  promptCount: appContext.prompts.length,
-  prompts: appContext.prompts,
-  promptCacheTtl: appContext.promptCacheTtl,
+  promptCount: prompts.length,
+  prompts,
+  resourceCount: resources.length,
+  resources,
+  promptCacheTtl,
 };
 
 console.log(`MCP web client running on http://localhost:${port}`);
-console.log(`Model: ${appContext.model}`);
+console.log(`Model: ${model}`);
 console.log(
-  `MCP: ${appContext.mcpConnected ? `${appContext.tools.length} tools, ${appContext.prompts.length} prompts` : 'not connected'}`,
+  `MCP: ${
+    mcpConnected
+      ? `${tools.length} tools, ${prompts.length} prompts, ${resources.length} resources`
+      : 'not connected'
+  }`,
 );
 console.log(
-  `Prompt cache: ${appContext.promptCacheEnabled ? `enabled (TTL ${appContext.promptCacheTtl})` : 'disabled'}`,
+  `Prompt cache: ${promptCacheEnabled ? `enabled (TTL ${promptCacheTtl})` : 'disabled'}`,
 );
 
 app.get('/api/health', (_req, res) => {
@@ -149,6 +193,35 @@ app.post('/api/prompts/get', async (req, res) => {
       parsed.arguments,
     );
     res.json(result);
+  } catch (error) {
+    res.status(400).json({
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+});
+
+app.get('/api/resources', (_req, res) => {
+  res.json({ resources });
+});
+
+app.post('/api/resources/read', async (req, res) => {
+  if (!appContext.mcpClient) {
+    res.status(503).json({ error: 'MCP server is not connected' });
+    return;
+  }
+
+  const parsed = parseResourceReadBody(req.body);
+  if (!parsed) {
+    res.status(400).json({ error: 'Resource URI is required' });
+    return;
+  }
+
+  try {
+    const result = await readMcpResource(appContext.mcpClient, parsed.uri);
+    res.json({
+      ...result,
+      message: formatResourceInjectMessage(result.uri, result.text),
+    });
   } catch (error) {
     res.status(400).json({
       error: error instanceof Error ? error.message : String(error),

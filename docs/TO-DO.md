@@ -58,7 +58,7 @@ Used in the live system prompt (not as a separate “course module”):
 | Defining prompts | `create_mb_payment`, `create_mbway_payment`, `create_and_verify_mbway_payment`, `cancel_payment_workflow` via `registerPrompt` |
 | Server inspector | Covered via curl / testing docs (not a built-in Inspector UI) |
 | Prompts **in the client** | **Done** — web `PromptPicker` + `/prompts` API; CLI `/prompts` and `/prompt <name>` |
-| Defining / accessing **resources** | **Not** present |
+| Defining / accessing **resources** | **Done** — `wallet://docs/{file}` via `registerKnowledgeResources`; web `ResourcePicker` + `/api/resources`; CLI `/resources` / `/resource` |
 
 ### Anthropic apps
 | Topic | Status |
@@ -84,7 +84,7 @@ Used in the live system prompt (not as a separate “course module”):
 These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 
 ### High fit (natural extensions)
-1. **MCP resources** — expose `knowledge/*.md` or wallet FAQ as resources; show list/read in client or Claude Desktop  
+1. **MCP resources** ✅ — `wallet://docs/{file}` knowledge docs; web picker + CLI `/resources` / `/resource`  
 2. **Prompts in the client** ✅ — web picker + CLI `/prompts` / `/prompt`  
 3. **BM25 or hybrid search** — docs already sketch this; good RAG lesson  
 4. **Multi-index RAG** — separate Wallet vs Mindshaker indexes (or Postgres vs LanceDB side-by-side)  
@@ -119,11 +119,11 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 | Tool use | Yes (custom MCP) | `tool_choice`, built-in Anthropic tools |
 | RAG / agentic search | Yes (vector only; multi-chunker) | BM25/hybrid, multi-index |
 | Claude features | Partial | Images, Citations API, native PDF, temperature UI |
-| MCP | Yes (tools + prompts + client prompts) | Resources |
+| MCP | Yes (tools + prompts + resources + client UX) | — |
 | Anthropic apps | Docs only | Claude Code wiring |
 | Agents / workflows | Partial (agentic loop + chaining prompts) | Clearer routing + parallel demos |
 
-**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/client + agentic RAG (multi-chunker) + extended thinking + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **MCP resources**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF, temperature UI presets).
+**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/resources/client + agentic RAG (multi-chunker) + extended thinking + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF, temperature UI presets).
 
 ---
 
@@ -133,12 +133,12 @@ Here’s a clearer take on each high-fit demo — what it is, what you already h
 
 ---
 
-### 1. MCP resources ⏳
+### 1. MCP resources ✅ — Already implemented
 **What it is:** MCP has three primitives: tools (actions), prompts (reusable message templates), and **resources** (read-only data the client can fetch — files, docs, configs).
 
-**Today:** You register tools and prompts (`create_mb_payment`, `create_mbway_payment`, chaining workflows). Knowledge lives only behind `search_knowledge_base` (search), not as browsable resources. Client prompts are implemented (#2).
+**Today:** `registerKnowledgeResources` exposes `apps/mcp-server/knowledge` text docs as `wallet://docs/{filename}` (`.md` / `.txt` / `.html`). Web UI has `ResourcePicker` (list → preview → inject). CLI supports `/resources` and `/resource <uri|name>`. API: `GET /api/resources`, `POST /api/resources/read`. Optional `KNOWLEDGE_DIR` overrides the docs path. Client prompts (#2) are also implemented.
 
-**Demo:** Expose `apps/mcp-server/knowledge/*.md` (or wallet FAQ sections) as MCP resources (`wallet://docs/refund-policy`, etc.). Claude Desktop or your client can list/read them without a vector search. Shows the “data” side of MCP next to tools.
+**Demo (done):** Open Resources → pick `wallet-faq.md` → preview → Insert into chat (or Claude Desktop list/read the same URIs).
 
 ---
 
@@ -259,7 +259,7 @@ Frames “agent vs workflow” using tools you already have.
 | 8–9 | Claude API control | `chat-engine` / web UI |
 | 10 | Agents vs workflows | Classifier + tool loop |
 
-**Short path status:** **#2**, **#5**, and **#7** are done; **#9** has a thinking UI toggle. Next high-value gaps: **#1 resources**, **#3/#6** hybrid search or eval harness, fuller **#8/#9** (forced structured output + temperature UI presets).
+**Short path status:** **#1**, **#2**, **#5**, and **#7** are done; **#9** has a thinking UI toggle. Next high-value gaps: **#3/#6** hybrid search or eval harness, fuller **#8/#9** (forced structured output + temperature UI presets).
 
 ---
 
@@ -271,6 +271,7 @@ Status check against the high-fit demos and related work found in the repo (comm
 
 | # | Demo | Status | Evidence |
 | --- | --- | --- | --- |
+| **1** | MCP resources | **Done** | `registerKnowledgeResources` → `wallet://docs/{file}`; web `ResourcePicker` + `/api/resources` / `/api/resources/read`; CLI `/resources` and `/resource <uri\|name>`. |
 | **2** | Prompts in the client | **Done** | Web `PromptPicker` + `/api/prompts` / `/api/prompts/get`; CLI `/prompts` and `/prompt <name>`. Commit `3eca3fe`. |
 | **7** | XML-structured system prompts | **Done** | `BASE_POLICY_XML` with `<scope>`, `<rules>`, `<examples>`, etc.; `SYSTEM_PROMPT_FORMAT=xml\|markdown` (xml default). In `system-prompt.ts` + `.env.template`. |
 | **5** | Alternate chunkers | **Done** | Per-type `CHUNKER_*` + `html` (`HTMLNodeParser`); `compare:chunkers`; `chunker.ts`; unit tests in `test/mcp-server/knowledge/chunker.spec.ts`. |
@@ -281,7 +282,6 @@ Status check against the high-fit demos and related work found in the repo (comm
 
 | # | Demo | Notes |
 | --- | --- | --- |
-| **1** | MCP resources | Still tools + prompts only; no `registerResource` / list-read in client |
 | **3** | BM25 / hybrid search | Still vector-only |
 | **4** | Multi-index RAG | Still one corpus; backends are selectable (Postgres **or** LanceDB), not separate Wallet vs Mindshaker indexes |
 | **6** | Prompt eval harness | Still no datasets / graders for scope or RAG (chunker + dates unit tests only) |
@@ -299,4 +299,4 @@ Status check against the high-fit demos and related work found in the repo (comm
 
 ### Updated short path
 
-Of the earlier “short path” suggestions, **#2 (prompts in client)**, **#5 (chunkers)**, and **#7 (XML prompts)** are already in place; **#9** has a thinking UI toggle. Remaining high-value gaps that still fit cleanly: **#1 resources**, **#3/#6** hybrid search or eval harness, and fuller **#8/#9** (forced structured output + temperature UI presets).
+Of the earlier “short path” suggestions, **#1 (resources)**, **#2 (prompts in client)**, **#5 (chunkers)**, and **#7 (XML prompts)** are already in place; **#9** has a thinking UI toggle. Remaining high-value gaps that still fit cleanly: **#3/#6** hybrid search or eval harness, and fuller **#8/#9** (forced structured output + temperature UI presets).

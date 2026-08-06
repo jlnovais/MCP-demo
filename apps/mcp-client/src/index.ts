@@ -20,10 +20,22 @@ const app = await bootstrap({
   },
 });
 
+const resourcesValue = (app as Record<string, unknown>)['resources'];
+const resources = Array.isArray(resourcesValue)
+  ? (resourcesValue as Array<{
+      uri: string;
+      name: string;
+      title?: string;
+      description?: string;
+      mimeType?: string;
+    }>)
+  : [];
+
 printStartupBanner({
   model: app.model,
   tools: app.tools,
   prompts: app.prompts,
+  resources,
   apiKey: requireEnv('ANTHROPIC_API_KEY'),
   promptCacheEnabled: app.promptCacheEnabled,
   promptCacheTtl: app.promptCacheTtl,

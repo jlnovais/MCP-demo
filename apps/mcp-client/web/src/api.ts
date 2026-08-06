@@ -1,6 +1,7 @@
 import type {
   ChatStreamEvent,
   PromptInfo,
+  ResourceInfo,
   ServerConfig,
   SessionDetail,
   SessionSummary,
@@ -64,6 +65,27 @@ export function getPrompt(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, arguments: args }),
+  });
+}
+
+export function fetchResources(): Promise<ResourceInfo[]> {
+  return request<{ resources: ResourceInfo[] }>('/resources').then(
+    (body) => body.resources,
+  );
+}
+
+export function readResource(
+  uri: string,
+): Promise<{ uri: string; text: string; mimeType?: string; message: string }> {
+  return request<{
+    uri: string;
+    text: string;
+    mimeType?: string;
+    message: string;
+  }>('/resources/read', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uri }),
   });
 }
 

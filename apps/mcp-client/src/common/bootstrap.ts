@@ -1,4 +1,4 @@
-import Anthropic from '@anthropic-ai/sdk';
+﻿import Anthropic from '@anthropic-ai/sdk';
 import {
   mcpTools,
   type MCPClientLike,
@@ -11,12 +11,13 @@ import { resolveClaudeSamplingParams } from './claude-sampling.js';
 import { connectMcpClient } from './connection.js';
 import { requireEnv } from './env.js';
 import { listMcpPrompts, type PromptInfo } from './prompts.js';
+import { listMcpResources } from './mcp-resources.js';
+import type { AppContext, McpResourceSummary } from './types.js';
 import {
   buildClassifierPrompt,
   buildSystemPrompt,
   resolveSystemPromptFormat,
 } from './system-prompt.js';
-import type { AppContext } from './types.js';
 
 const DEFAULT_MAX_TOKENS = 4096;
 
@@ -85,6 +86,7 @@ export async function bootstrap(
   let claudeTools: BetaRunnableTool<Record<string, unknown>>[] = [];
   let tools: Tool[] = [];
   let prompts: PromptInfo[] = [];
+  let resources: McpResourceSummary[] = [];
   if (mcpClient) {
     ({ tools } = await mcpClient.listTools());
     claudeTools = mcpTools(tools, mcpClient as MCPClientLike);
@@ -93,6 +95,14 @@ export async function bootstrap(
     } catch (error) {
       console.warn(
         'Failed to list MCP prompts:',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    try {
+      resources = await listMcpResources(mcpClient);
+    } catch (error) {
+      console.warn(
+        'Failed to list MCP resources:',
         error instanceof Error ? error.message : String(error),
       );
     }
@@ -118,6 +128,7 @@ export async function bootstrap(
     samplingParams,
     tools,
     prompts,
+    resources,
     systemPrompt,
     classifierPrompt,
     classifierModel,

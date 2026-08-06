@@ -8,6 +8,14 @@ import type { PromptInfo } from './prompts.js';
 
 export type { PromptInfo };
 
+export type McpResourceSummary = {
+  uri: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+};
+
 export type AppContext = {
   anthropic: Anthropic;
   model: string;
@@ -19,6 +27,7 @@ export type AppContext = {
   samplingParams: ClaudeSamplingParams;
   tools: Tool[];
   prompts: PromptInfo[];
+  resources: McpResourceSummary[];
   systemPrompt: string;
   classifierPrompt: string;
   classifierModel: string;
@@ -78,5 +87,7 @@ export type ServerConfig = {
   tools: Array<{ name: string; description: string }>;
   promptCount: number;
   prompts: PromptInfo[];
+  resourceCount: number;
+  resources: McpResourceSummary[];
   promptCacheTtl: '5m' | '1h';
 };
