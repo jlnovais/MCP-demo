@@ -11,6 +11,12 @@ import {
   readMcpResource,
 } from './common/mcp-resources.js';
 import { SessionStore } from './common/sessions.js';
+import {
+  DEFAULT_SAMPLING_PRESET,
+  isSamplingPresetId,
+  listSamplingPresets,
+  type SamplingPresetId,
+} from './common/claude-sampling.js';
 import type {
   AppContext,
   ChatStreamEvent,
@@ -46,6 +52,18 @@ function parseThinkingEnabled(body: unknown): boolean | undefined {
     return body.thinking;
   }
   return undefined;
+}
+
+function parseSamplingPreset(body: unknown): SamplingPresetId | undefined {
+  if (
+    typeof body !== 'object' ||
+    body === null ||
+    !('preset' in body) ||
+    typeof body.preset !== 'string'
+  ) {
+    return undefined;
+  }
+  return isSamplingPresetId(body.preset) ? body.preset : undefined;
 }
 
 function parsePromptGetBody(
@@ -147,6 +165,8 @@ const serverConfig: ServerConfig = {
   resourceCount: resources.length,
   resources,
   promptCacheTtl,
+  samplingPresets: listSamplingPresets(),
+  defaultSamplingPreset: DEFAULT_SAMPLING_PRESET,
 };
 
 console.log(`MCP web client running on http://localhost:${port}`);
@@ -269,6 +289,7 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
   }
 
   const thinkingEnabled = parseThinkingEnabled(req.body);
+  const preset = parseSamplingPreset(req.body);
 
   sessions.touch(sessionId, message);
 
@@ -283,6 +304,7 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
 
   try {
     await streamChatTurn(appContext, messages, message, send, {
+      ...(preset !== undefined ? { preset } : {}),
       ...(thinkingEnabled !== undefined ? { thinkingEnabled } : {}),
     });
   } catch (error) {

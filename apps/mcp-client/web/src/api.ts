@@ -109,7 +109,7 @@ export async function streamChat(
   sessionId: string,
   message: string,
   onEvent: (event: ChatStreamEvent) => void,
-  options?: { thinking?: boolean },
+  options?: { thinking?: boolean; preset?: string },
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/sessions/${sessionId}/chat`, {
     ...fetchOptions,
@@ -120,6 +120,7 @@ export async function streamChat(
       ...(options?.thinking !== undefined
         ? { thinking: options.thinking }
         : {}),
+      ...(options?.preset !== undefined ? { preset: options.preset } : {}),
     }),
   });
 

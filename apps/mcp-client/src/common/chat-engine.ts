@@ -12,6 +12,10 @@ import type {
   MessageBlock,
   PromptCacheStats,
 } from './types.js';
+import {
+  resolveTurnSampling,
+  type SamplingPresetId,
+} from './claude-sampling.js';
 
 const TOOL_RESULT_MAX_CHARS = 1000;
 const CLASSIFIER_MAX_TOKENS = 16;
@@ -198,7 +202,12 @@ async function isOutOfScope(
 }
 
 export type StreamChatTurnOptions = {
-  /** When set, overrides env-based thinking for this turn. */
+  /**
+   * Named sampling preset from the web UI. When set, drives both temperature
+   * and whether extended thinking is enabled for this turn.
+   */
+  preset?: SamplingPresetId;
+  /** When set (and no preset), overrides env-based thinking for this turn. */
   thinkingEnabled?: boolean;
 };
 
@@ -231,9 +240,12 @@ export async function streamChatTurn(
 
   messages.push({ role: 'user', content: userInput });
 
-  const thinkingEnabled =
-    options?.thinkingEnabled ??
-    (ctx.thinkingBudget !== undefined && ctx.thinkingBudget > 0);
+  const { thinkingEnabled, samplingParams } = resolveTurnSampling({
+    preset: options?.preset,
+    thinkingEnabled: options?.thinkingEnabled,
+    thinkingBudget: ctx.thinkingBudget,
+    envSamplingParams: ctx.samplingParams,
+  });
   const thinkingBudget =
     ctx.thinkingBudget !== undefined && ctx.thinkingBudget > 0
       ? ctx.thinkingBudget
@@ -257,7 +269,7 @@ export async function streamChatTurn(
           },
         }
       : {}),
-    ...(thinkingConfig ? { thinking: thinkingConfig } : ctx.samplingParams),
+    ...(thinkingConfig ? { thinking: thinkingConfig } : samplingParams),
   });
 
   let printedMessages = runner.params.messages.length;
