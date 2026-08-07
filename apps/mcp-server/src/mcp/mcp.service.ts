@@ -12,6 +12,7 @@ import { registerPaymentsTools } from './tools/register-payments-tools';
 import { registerWalletsTools } from './tools/register-wallets-tools';
 import { registerUtilitiesDatesTools } from './tools/register-utilities-dates-tools';
 import { registerKnowledgeTools } from './tools/register-knowledge-tools';
+import { registerKnowledgeResources } from './tools/register-knowledge-resources';
 import { KnowledgeService } from './knowledge/knowledge.service';
 import { UtilitiesDatesService } from './utilities/utilities-dates.service';
 
@@ -33,6 +34,7 @@ export class McpService {
       version: '1.0.0',
     });
     registerPaymentsPrompts(server);
+    registerKnowledgeResources(server);
     registerPaymentsTools(server, this.paymentsService);
     registerWalletsTools(server, this.walletsService);
     registerExchangeRateTools(server, this.exchangeRateService);

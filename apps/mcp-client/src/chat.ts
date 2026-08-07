@@ -4,7 +4,24 @@ import type { BetaMessageParam } from '@anthropic-ai/sdk/resources/beta/messages
 import type { AppContext } from './common/types.js';
 import { streamChatTurn } from './common/chat-engine.js';
 import { getMcpPromptMessage, type PromptInfo } from './common/prompts.js';
+import {
+  formatResourceInjectMessage,
+  readMcpResource,
+} from './common/mcp-resources.js';
 import { color } from './io.js';
+
+type ResourceRow = {
+  uri: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+};
+
+function getResources(ctx: { resources?: unknown }): ResourceRow[] {
+  const value = (ctx as Record<string, unknown>)['resources'];
+  return Array.isArray(value) ? (value as ResourceRow[]) : [];
+}
 
 const USER_COLOR = 34;
 const CLAUDE_NAME_COLOR = 32;
@@ -46,6 +63,41 @@ function printPromptList(prompts: PromptInfo[]): void {
   );
 }
 
+function printResourceList(resources: ResourceRow[]): void {
+  if (resources.length === 0) {
+    console.log(color('No MCP resources available.', HINT_COLOR));
+    return;
+  }
+
+  console.log(color('\nMCP resources:', HINT_COLOR, STYLE_BOLD));
+  for (const resource of resources) {
+    const title = resource.title ? ` — ${resource.title}` : '';
+    console.log(`  ${color(resource.name, TOOL_COLOR, STYLE_BOLD)}${title}`);
+    console.log(`    ${resource.uri}`);
+    if (resource.description) {
+      console.log(`    ${resource.description}`);
+    }
+  }
+  console.log(
+    color(
+      '\nUse "/resource <uri|name>" to read and inject into chat.\n',
+      HINT_COLOR,
+    ),
+  );
+}
+
+function findResource(
+  resources: ResourceRow[],
+  query: string,
+): ResourceRow | undefined {
+  const trimmed = query.trim();
+  return (
+    resources.find((item) => item.uri === trimmed) ??
+    resources.find((item) => item.name === trimmed) ??
+    resources.find((item) => item.uri.endsWith(`/${trimmed}`))
+  );
+}
+
 async function collectPromptArgs(
   rl: Interface,
   prompt: PromptInfo,
@@ -79,6 +131,7 @@ export async function runChat({
   prompts,
   ...ctx
 }: AppContext): Promise<void> {
+  const resources = getResources(ctx);
   const rl = createInterface({ input, output });
   const messages: BetaMessageParam[] = [];
   let exiting = false;
@@ -185,6 +238,11 @@ export async function runChat({
         continue;
       }
 
+      if (trimmed === '/resources' || trimmed === '/resource') {
+        printResourceList(resources);
+        continue;
+      }
+
       if (trimmed.startsWith('/prompt ')) {
         const promptName = trimmed.slice('/prompt '.length).trim();
         const prompt = prompts.find((item) => item.name === promptName);
@@ -214,6 +272,41 @@ export async function runChat({
             args,
           );
           console.log(color('\n[injected prompt]', HINT_COLOR, STYLE_ITALIC));
+          console.log(color(message, HINT_COLOR, STYLE_ITALIC));
+          console.log('');
+          await runTurn(message);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            color('Error:', ERROR_COLOR, STYLE_BOLD),
+            color(message, ERROR_DESCRIPTION_COLOR),
+          );
+        }
+        continue;
+      }
+
+      if (trimmed.startsWith('/resource ')) {
+        const query = trimmed.slice('/resource '.length).trim();
+        const resource = findResource(resources, query);
+        if (!resource) {
+          console.log(
+            color(
+              `Unknown resource "${query}". Use /resources to list.`,
+              ERROR_COLOR,
+            ),
+          );
+          continue;
+        }
+        if (!mcpClient) {
+          console.log(color('MCP server is not connected.', ERROR_COLOR));
+          continue;
+        }
+
+        try {
+          const result = await readMcpResource(mcpClient, resource.uri);
+          const message = formatResourceInjectMessage(result.uri, result.text);
+          console.log(color('\n[injected resource]', HINT_COLOR, STYLE_ITALIC));
           console.log(color(message, HINT_COLOR, STYLE_ITALIC));
           console.log('');
           await runTurn(message);

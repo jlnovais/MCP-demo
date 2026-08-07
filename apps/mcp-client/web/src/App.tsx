@@ -230,7 +230,7 @@ export function App() {
                   className={`badge-dot ${config.mcpConnected ? '' : 'offline'}`}
                 />
                 {config.mcpConnected
-                  ? `${config.toolCount} tools · ${config.promptCount ?? 0} prompts`
+                  ? `${config.toolCount} tools · ${config.promptCount ?? 0} prompts · ${config.resourceCount ?? 0} resources`
                   : 'MCP offline'}
               </span>
             ) : null}
@@ -243,6 +243,7 @@ export function App() {
             messages={messages}
             isStreaming={isStreaming}
             prompts={config?.prompts ?? []}
+            resources={config?.resources ?? []}
             promptCacheTtl={config?.promptCacheTtl}
             thinkingEnabled={thinkingEnabled}
             onThinkingChange={setThinkingEnabled}

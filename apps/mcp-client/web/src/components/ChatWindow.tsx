@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import type { DisplayMessage, PromptInfo } from '../types';
+import type { DisplayMessage, PromptInfo, ResourceInfo } from '../types';
 import { ChatInputArea } from './ChatInputArea';
 import { MessageBubble } from './MessageBubble';
 import './ChatWindow.css';
@@ -8,6 +8,7 @@ type ChatWindowProps = {
   messages: DisplayMessage[];
   isStreaming: boolean;
   prompts?: PromptInfo[];
+  resources?: ResourceInfo[];
   promptCacheTtl?: '5m' | '1h';
   thinkingEnabled: boolean;
   onThinkingChange: (enabled: boolean) => void;
@@ -20,6 +21,7 @@ export function ChatWindow({
   messages,
   isStreaming,
   prompts = [],
+  resources = [],
   promptCacheTtl,
   thinkingEnabled,
   onThinkingChange,
@@ -47,6 +49,7 @@ export function ChatWindow({
       <ChatInputArea
         isStreaming={isStreaming}
         prompts={prompts}
+        resources={resources}
         thinkingEnabled={thinkingEnabled}
         onThinkingChange={onThinkingChange}
         onSend={onSend}

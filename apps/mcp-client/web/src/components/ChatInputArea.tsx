@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { PromptInfo } from '../types';
+import type { PromptInfo, ResourceInfo } from '../types';
 import { PromptPicker } from './PromptPicker';
+import { ResourcePicker } from './ResourcePicker';
 
 type ChatInputAreaProps = {
   isStreaming: boolean;
   prompts: PromptInfo[];
+  resources: ResourceInfo[];
   thinkingEnabled: boolean;
   onThinkingChange: (enabled: boolean) => void;
   onSend: (message: string) => void;
@@ -37,6 +39,7 @@ function ThinkingIcon() {
 export function ChatInputArea({
   isStreaming,
   prompts,
+  resources,
   thinkingEnabled,
   onThinkingChange,
   onSend,
@@ -109,6 +112,11 @@ export function ChatInputArea({
           disabled={isStreaming}
           onInject={onSend}
         />
+        <ResourcePicker
+          resources={resources}
+          disabled={isStreaming}
+          onInject={onSend}
+        />
         <div className="chat-input-main">
           <form className="chat-input-compose" onSubmit={handleSubmit}>
             <textarea
@@ -156,6 +164,7 @@ export function ChatInputArea({
       <p className="chat-hint">
         Enter to send · Shift+Enter for new line
         {prompts.length > 0 ? ' · Prompts for MCP templates' : ''}
+        {resources.length > 0 ? ' · Resources for knowledge docs' : ''}
       </p>
     </div>
   );

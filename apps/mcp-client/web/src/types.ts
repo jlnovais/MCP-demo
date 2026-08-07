@@ -9,6 +9,14 @@ export type PromptInfo = {
   }>;
 };
 
+export type ResourceInfo = {
+  uri: string;
+  name: string;
+  title?: string;
+  description?: string;
+  mimeType?: string;
+};
+
 export type PromptCacheStats = {
   step: number;
   status: 'HIT' | 'WRITE' | 'MISS';
@@ -61,5 +69,7 @@ export type ServerConfig = {
   tools: Array<{ name: string; description: string }>;
   promptCount: number;
   prompts: PromptInfo[];
+  resourceCount: number;
+  resources: ResourceInfo[];
   promptCacheTtl: '5m' | '1h';
 };
