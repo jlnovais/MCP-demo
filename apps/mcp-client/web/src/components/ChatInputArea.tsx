@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import type { PromptInfo, ResourceInfo } from '../types';
+import type {
+  PromptInfo,
+  ResourceInfo,
+  SamplingPresetId,
+  SamplingPresetInfo,
+} from '../types';
 import { PromptPicker } from './PromptPicker';
 import { ResourcePicker } from './ResourcePicker';
 
@@ -7,41 +12,19 @@ type ChatInputAreaProps = {
   isStreaming: boolean;
   prompts: PromptInfo[];
   resources: ResourceInfo[];
-  thinkingEnabled: boolean;
-  onThinkingChange: (enabled: boolean) => void;
+  samplingPresets: SamplingPresetInfo[];
+  samplingPreset: SamplingPresetId;
+  onSamplingPresetChange: (preset: SamplingPresetId) => void;
   onSend: (message: string) => void;
 };
-
-function ThinkingIcon() {
-  return (
-    <svg
-      className="thinking-toggle-icon"
-      viewBox="0 0 24 24"
-      width="16"
-      height="16"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M9.5 17.5c0 1 .8 1.5 2.5 1.5s2.5-.5 2.5-1.5" />
-      <path d="M8 14.5c-1.8-1-3-2.8-3-5a5 5 0 0 1 10 0c0 2.2-1.2 4-3 5" />
-      <path d="M10 14.5h4" />
-      <path d="M12 2v1.5" />
-      <path d="M5.2 5.2l1.1 1.1" />
-      <path d="M18.8 5.2l-1.1 1.1" />
-    </svg>
-  );
-}
 
 export function ChatInputArea({
   isStreaming,
   prompts,
   resources,
-  thinkingEnabled,
-  onThinkingChange,
+  samplingPresets,
+  samplingPreset,
+  onSamplingPresetChange,
   onSend,
 }: ChatInputAreaProps) {
   const [input, setInput] = useState('');
@@ -104,6 +87,10 @@ export function ChatInputArea({
     }
   };
 
+  const activePreset =
+    samplingPresets.find((preset) => preset.id === samplingPreset) ??
+    samplingPresets[0];
+
   return (
     <div className="chat-input-area">
       <div className="chat-input-form">
@@ -140,24 +127,33 @@ export function ChatInputArea({
             </button>
           </form>
           <div className="chat-input-toolbar">
-            <button
-              type="button"
-              className={`extended-thinking-btn${thinkingEnabled ? ' is-on' : ''}`}
-              aria-pressed={thinkingEnabled}
-              disabled={isStreaming}
-              title={
-                thinkingEnabled
-                  ? 'Extended thinking on — click to turn off'
-                  : 'Extended thinking off — click to turn on'
-              }
-              onClick={() => onThinkingChange(!thinkingEnabled)}
-            >
-              <ThinkingIcon />
-              <span>Thinking</span>
-              <span className="extended-thinking-state">
-                {thinkingEnabled ? 'On' : 'Off'}
-              </span>
-            </button>
+            {samplingPresets.length > 0 ? (
+              <div
+                className="sampling-preset-group"
+                role="group"
+                aria-label="Sampling preset"
+              >
+                {samplingPresets.map((preset) => {
+                  const selected = preset.id === samplingPreset;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      className={`sampling-preset-btn${selected ? ' is-on' : ''}`}
+                      aria-pressed={selected}
+                      disabled={isStreaming}
+                      title={preset.description}
+                      onClick={() => onSamplingPresetChange(preset.id)}
+                    >
+                      {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
+            {activePreset ? (
+              <span className="sampling-preset-hint">{activePreset.hint}</span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -165,6 +161,9 @@ export function ChatInputArea({
         Enter to send · Shift+Enter for new line
         {prompts.length > 0 ? ' · Prompts for MCP templates' : ''}
         {resources.length > 0 ? ' · Resources for knowledge docs' : ''}
+        {samplingPresets.length > 0
+          ? ' · Precise / Creative / Think hard to compare sampling'
+          : ''}
       </p>
     </div>
   );

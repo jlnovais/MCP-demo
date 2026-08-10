@@ -1,5 +1,11 @@
 import { memo, useEffect, useRef } from 'react';
-import type { DisplayMessage, PromptInfo, ResourceInfo } from '../types';
+import type {
+  DisplayMessage,
+  PromptInfo,
+  ResourceInfo,
+  SamplingPresetId,
+  SamplingPresetInfo,
+} from '../types';
 import { ChatInputArea } from './ChatInputArea';
 import { MessageBubble } from './MessageBubble';
 import './ChatWindow.css';
@@ -10,8 +16,9 @@ type ChatWindowProps = {
   prompts?: PromptInfo[];
   resources?: ResourceInfo[];
   promptCacheTtl?: '5m' | '1h';
-  thinkingEnabled: boolean;
-  onThinkingChange: (enabled: boolean) => void;
+  samplingPresets: SamplingPresetInfo[];
+  samplingPreset: SamplingPresetId;
+  onSamplingPresetChange: (preset: SamplingPresetId) => void;
   onSend: (message: string) => void;
 };
 
@@ -23,8 +30,9 @@ export function ChatWindow({
   prompts = [],
   resources = [],
   promptCacheTtl,
-  thinkingEnabled,
-  onThinkingChange,
+  samplingPresets,
+  samplingPreset,
+  onSamplingPresetChange,
   onSend,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -50,8 +58,9 @@ export function ChatWindow({
         isStreaming={isStreaming}
         prompts={prompts}
         resources={resources}
-        thinkingEnabled={thinkingEnabled}
-        onThinkingChange={onThinkingChange}
+        samplingPresets={samplingPresets}
+        samplingPreset={samplingPreset}
+        onSamplingPresetChange={onSamplingPresetChange}
         onSend={onSend}
       />
     </div>

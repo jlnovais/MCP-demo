@@ -4,9 +4,13 @@ import type { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { ClaudeSamplingParams } from './claude-sampling.js';
+import type {
+  SamplingPresetId,
+  SamplingPresetInfo,
+} from './claude-sampling.js';
 import type { PromptInfo } from './prompts.js';
 
-export type { PromptInfo };
+export type { PromptInfo, SamplingPresetId, SamplingPresetInfo };
 
 export type McpResourceSummary = {
   uri: string;
@@ -90,4 +94,6 @@ export type ServerConfig = {
   resourceCount: number;
   resources: McpResourceSummary[];
   promptCacheTtl: '5m' | '1h';
+  samplingPresets: SamplingPresetInfo[];
+  defaultSamplingPreset: SamplingPresetId;
 };

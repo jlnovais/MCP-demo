@@ -17,6 +17,15 @@ export type ResourceInfo = {
   mimeType?: string;
 };
 
+export type SamplingPresetId = 'precise' | 'creative' | 'think_hard';
+
+export type SamplingPresetInfo = {
+  id: SamplingPresetId;
+  label: string;
+  description: string;
+  hint: string;
+};
+
 export type PromptCacheStats = {
   step: number;
   status: 'HIT' | 'WRITE' | 'MISS';
@@ -72,4 +81,6 @@ export type ServerConfig = {
   resourceCount: number;
   resources: ResourceInfo[];
   promptCacheTtl: '5m' | '1h';
+  samplingPresets: SamplingPresetInfo[];
+  defaultSamplingPreset: SamplingPresetId;
 };

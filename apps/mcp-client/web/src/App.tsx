@@ -7,11 +7,37 @@ import {
   fetchSessions,
   streamChat,
 } from './api';
-import type { DisplayMessage, ServerConfig, SessionSummary } from './types';
+import type {
+  DisplayMessage,
+  SamplingPresetId,
+  ServerConfig,
+  SessionSummary,
+} from './types';
 import { applyStreamEvent } from './block-utils';
 import { Sidebar } from './components/Sidebar';
 import { ChatWindow } from './components/ChatWindow';
 import './App.css';
+
+const FALLBACK_PRESETS = [
+  {
+    id: 'precise' as const,
+    label: 'Precise',
+    description: 'Temperature 0 — more deterministic answers',
+    hint: 'Best for facts, IDs, and tool-driven wallet steps.',
+  },
+  {
+    id: 'creative' as const,
+    label: 'Creative',
+    description: 'Temperature 1 — more varied wording',
+    hint: 'Best for brainstorming or varied phrasing (still in-scope).',
+  },
+  {
+    id: 'think_hard' as const,
+    label: 'Think hard',
+    description: 'Extended thinking on (API fixes temperature at 1)',
+    hint: 'Uses the thinking budget; sampling temperature is ignored.',
+  },
+];
 
 function createId(): string {
   return crypto.randomUUID();
@@ -24,21 +50,26 @@ export function App() {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [thinkingBySession, setThinkingBySession] = useState<
-    Record<string, boolean>
+  const [presetBySession, setPresetBySession] = useState<
+    Record<string, SamplingPresetId>
   >({});
 
-  const thinkingEnabled = activeSessionId
-    ? (thinkingBySession[activeSessionId] ?? false)
-    : false;
+  const defaultPreset: SamplingPresetId =
+    config?.defaultSamplingPreset ?? 'precise';
+  const samplingPresets = config?.samplingPresets?.length
+    ? config.samplingPresets
+    : FALLBACK_PRESETS;
+  const samplingPreset = activeSessionId
+    ? (presetBySession[activeSessionId] ?? defaultPreset)
+    : defaultPreset;
 
-  const setThinkingEnabled = (enabled: boolean) => {
+  const setSamplingPreset = (preset: SamplingPresetId) => {
     if (!activeSessionId) {
       return;
     }
-    setThinkingBySession((current) => ({
+    setPresetBySession((current) => ({
       ...current,
-      [activeSessionId]: enabled,
+      [activeSessionId]: preset,
     }));
   };
 
@@ -187,7 +218,7 @@ export function App() {
             }),
           );
         },
-        { thinking: thinkingEnabled },
+        { thinking: samplingPreset === 'think_hard', preset: samplingPreset },
       );
 
       const list = await loadSessions();
@@ -245,8 +276,9 @@ export function App() {
             prompts={config?.prompts ?? []}
             resources={config?.resources ?? []}
             promptCacheTtl={config?.promptCacheTtl}
-            thinkingEnabled={thinkingEnabled}
-            onThinkingChange={setThinkingEnabled}
+            samplingPresets={samplingPresets}
+            samplingPreset={samplingPreset}
+            onSamplingPresetChange={setSamplingPreset}
             onSend={(text) => void handleSend(text)}
           />
         ) : (

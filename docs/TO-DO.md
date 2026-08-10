@@ -12,7 +12,7 @@ Here’s how those course topics map onto **this MCP-demo repo** (NestJS MCP ser
 | Making a request | `messages.create` (classifier) + `beta.messages.toolRunner` (main chat) |
 | Multi-turn conversations | Session message history (CLI + web) |
 | System prompts | `system-prompt.ts` (`buildSystemPrompt`, scope policy, examples) |
-| Temperature | `CLAUDE_TEMPERATURE` / `top_p` / `top_k` in `claude-sampling.ts` |
+| Temperature | Env + web presets (`Precise` / `Creative` / `Think hard`) via `claude-sampling.ts` |
 | Response streaming | `stream: true` + SSE to the web UI |
 | Structured data (partial) | Chart JSON contract in the system prompt + `ChartBlock`; Zod schemas on MCP tools; classifier forced to one label |
 
@@ -43,7 +43,7 @@ Used in the live system prompt (not as a separate “course module”):
 ### Features of Claude
 | Topic | Status |
 | --- | --- |
-| Extended thinking | `CLAUDE_THINKING_BUDGET` + streamed thinking blocks + per-session UI on/off toggle |
+| Extended thinking | `CLAUDE_THINKING_BUDGET` + streamed thinking blocks + web **Think hard** preset |
 | Prompt caching (+ rules / in action) | `cache_control`, TTL env, HIT/WRITE UI stats |
 | PDF support | **Ingest-only** (`pdf-parse` into RAG), not Claude’s native PDF API |
 | Citations | Soft: tool returns `source` and prompt says to cite — **not** Citations API |
@@ -92,7 +92,7 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 6. **Prompt eval harness** — golden Q&A for scope classifier + “did RAG cite the right source?” (code + model grading)  
 7. **XML-structured system prompts** ✅ — `SYSTEM_PROMPT_FORMAT=xml|markdown`  
 8. **Richer structured outputs** 🟡 — chart fenced blocks done; forced answer schemas still open  
-9. **Temperature / thinking comparison** 🟡 — thinking UI toggle done; temperature presets still open  
+9. **Temperature / thinking comparison** ✅ — Precise / Creative / Think hard presets in the web UI  
 10. **Explicit workflows** 🟡 — chaining prompts done (`create_and_verify_mbway_payment`, `cancel_payment_workflow`); single-step create prompts (`create_mb_payment`, `create_mbway_payment`); routing/parallel still open
 
 ### Medium fit
@@ -113,17 +113,17 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 
 | Section | Mostly here? | Best next demos |
 | --- | --- | --- |
-| Accessing Claude API | Yes | Structured outputs, temperature UI |
+| Accessing Claude API | Yes | Structured outputs |
 | Prompt evaluation | No | Scope + RAG eval suite |
 | Prompt engineering | Yes (XML + markdown) | Optional A/B of formats; eval harness |
 | Tool use | Yes (custom MCP) | `tool_choice`, built-in Anthropic tools |
 | RAG / agentic search | Yes (vector only; multi-chunker) | BM25/hybrid, multi-index |
-| Claude features | Partial | Images, Citations API, native PDF, temperature UI |
+| Claude features | Partial | Images, Citations API, native PDF |
 | MCP | Yes (tools + prompts + resources + client UX) | — |
 | Anthropic apps | Docs only | Claude Code wiring |
 | Agents / workflows | Partial (agentic loop + chaining prompts) | Clearer routing + parallel demos |
 
-**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/resources/client + agentic RAG (multi-chunker) + extended thinking + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF, temperature UI presets).
+**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/resources/client + agentic RAG (multi-chunker) + extended thinking + sampling presets + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF).
 
 ---
 
@@ -219,16 +219,17 @@ Print pass rate. Turns “prompt engineering” into something you can measure w
 
 ---
 
-### 9. Temperature / thinking comparison 🟡 — Partially implemented
+### 9. Temperature / thinking comparison ✅ — Already implemented
 **What it is:** Sampling (`temperature`) vs extended thinking (`thinking.budget_tokens`) change creativity vs deliberation.
 
-**Today:** Both exist via env (`CLAUDE_TEMPERATURE`, `CLAUDE_THINKING_BUDGET`) and thinking streams in the UI — plus a per-session thinking on/off toggle. Temperature still needs a restart/reconfigure to compare.
+**Today:** Web UI segmented control with **Precise** (temp 0), **Creative** (temp 1), and **Think hard** (extended thinking; API ignores custom temperature). Per-session preset; sent as `preset` on each chat turn. Budget still from `CLAUDE_THINKING_BUDGET` (default 1024 when enabling Think hard). CLI still uses env sampling / thinking.
 
-**Demo:** UI toggles or presets (“Precise”, “Creative”, “Think hard”) on the same question (e.g. multi-step payment + knowledge Q). Show side-by-side or sequential runs. Makes API knobs tangible (note: thinking and non-default temperature don’t mix on the API — your code already warns about that).
+**Demo (done):** Ask the same multi-step payment or knowledge question under Precise, then Creative, then Think hard — no `.env` edits.
 
 **Already / not yet:**
-- ✅ Done: extended thinking streams in the UI; per-session **thinking on/off** toggle (`thinkingEnabled` → `streamChatTurn`); budget still from `CLAUDE_THINKING_BUDGET` (with a default when enabling from the UI); temperature / top_p / top_k via env
-- ⏳ Still open: temperature (or sampling preset) controls in the UI; named presets (“Precise”, “Creative”, “Think hard”); easy side-by-side comparison without editing `.env`
+- ✅ Done: Precise / Creative / Think hard presets in the web toolbar; `resolveTurnSampling` in `claude-sampling.ts`; `streamChatTurn` accepts `preset`; config exposes `samplingPresets` + `defaultSamplingPreset`
+- ✅ Done: thinking streams + budget from env when Think hard is selected
+- CLI: still env-based (no preset commands) — acceptable for this demo
 
 ---
 
@@ -259,7 +260,7 @@ Frames “agent vs workflow” using tools you already have.
 | 8–9 | Claude API control | `chat-engine` / web UI |
 | 10 | Agents vs workflows | Classifier + tool loop |
 
-**Short path status:** **#1**, **#2**, **#5**, and **#7** are done; **#9** has a thinking UI toggle. Next high-value gaps: **#3/#6** hybrid search or eval harness, fuller **#8/#9** (forced structured output + temperature UI presets).
+**Short path status:** **#1**, **#2**, **#5**, **#7**, and **#9** are done. Next high-value gaps: **#3/#6** hybrid search or eval harness, fuller **#8** (forced structured output).
 
 ---
 
@@ -275,7 +276,7 @@ Status check against the high-fit demos and related work found in the repo (comm
 | **2** | Prompts in the client | **Done** | Web `PromptPicker` + `/api/prompts` / `/api/prompts/get`; CLI `/prompts` and `/prompt <name>`. Commit `3eca3fe`. |
 | **7** | XML-structured system prompts | **Done** | `BASE_POLICY_XML` with `<scope>`, `<rules>`, `<examples>`, etc.; `SYSTEM_PROMPT_FORMAT=xml\|markdown` (xml default). In `system-prompt.ts` + `.env.template`. |
 | **5** | Alternate chunkers | **Done** | Per-type `CHUNKER_*` + `html` (`HTMLNodeParser`); `compare:chunkers`; `chunker.ts`; unit tests in `test/mcp-server/knowledge/chunker.spec.ts`. |
-| **9** | Temperature / thinking comparison | **Partially done** | Per-session **extended thinking** toggle in the web UI (`thinkingEnabled` → `streamChatTurn`); thinking still also configurable via `CLAUDE_THINKING_BUDGET`. Temperature / sampling remain env-based (`CLAUDE_TEMPERATURE`, etc.) — no UI preset yet. |
+| **9** | Temperature / thinking comparison | **Done** | Web presets Precise / Creative / Think hard (`preset` → `resolveTurnSampling` → `streamChatTurn`). Thinking budget from `CLAUDE_THINKING_BUDGET`. CLI remains env-based. |
 | **8** | Richer structured outputs | **Partially done** | Chart fenced blocks (`chart` language tag + JSON) rendered by `ChartBlock` / `MarkdownContent`. Commit `e9200de`. Still soft (prompt contract), not a forced JSON-schema / dedicated summary tool. |
 
 ### High-fit demos — still open
@@ -299,4 +300,4 @@ Status check against the high-fit demos and related work found in the repo (comm
 
 ### Updated short path
 
-Of the earlier “short path” suggestions, **#1 (resources)**, **#2 (prompts in client)**, **#5 (chunkers)**, and **#7 (XML prompts)** are already in place; **#9** has a thinking UI toggle. Remaining high-value gaps that still fit cleanly: **#3/#6** hybrid search or eval harness, and fuller **#8/#9** (forced structured output + temperature UI presets).
+Of the earlier “short path” suggestions, **#1 (resources)**, **#2 (prompts in client)**, **#5 (chunkers)**, **#7 (XML prompts)**, and **#9 (sampling presets)** are already in place. Remaining high-value gaps that still fit cleanly: **#3/#6** hybrid search or eval harness, and fuller **#8** (forced structured output).
