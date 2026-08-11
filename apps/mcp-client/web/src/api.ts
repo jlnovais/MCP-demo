@@ -109,7 +109,11 @@ export async function streamChat(
   sessionId: string,
   message: string,
   onEvent: (event: ChatStreamEvent) => void,
-  options?: { thinking?: boolean; preset?: string },
+  options?: {
+    thinking?: boolean;
+    preset?: string;
+    structuredStrict?: boolean;
+  },
 ): Promise<void> {
   const response = await fetch(`${API_BASE}/sessions/${sessionId}/chat`, {
     ...fetchOptions,
@@ -121,6 +125,9 @@ export async function streamChat(
         ? { thinking: options.thinking }
         : {}),
       ...(options?.preset !== undefined ? { preset: options.preset } : {}),
+      ...(options?.structuredStrict !== undefined
+        ? { structuredStrict: options.structuredStrict }
+        : {}),
     }),
   });
 

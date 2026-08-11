@@ -142,6 +142,31 @@ export function buildSystemPrompt(
   return sections.join('\n\n');
 }
 
+/**
+ * Per-turn appendix when Structured (strict) mode is on.
+ * Applies to wallet summaries and payment reports — not to RAG / knowledge-base answers.
+ */
+export function buildStructuredOutputStrictAppendix(
+  format: SystemPromptFormat = resolveSystemPromptFormat(),
+): string {
+  if (format === 'markdown') {
+    return `STRUCTURED SUMMARIES (STRICT MODE — ON FOR THIS TURN):
+- This mode applies to (1) wallet balance / wallet summary requests and (2) payment report / payment summary requests (counts or breakdowns by type, status, or date range). It does NOT apply to knowledge-base / RAG answers (search_knowledge_base).
+- For wallet balance or wallet summary requests, you MUST call format_wallet_summary (do not use get_wallet alone for these). After the tool returns, your final message MUST include a fenced code block with language tag wallet_summary whose body is that tool's JSON.
+- For payment reports or summaries by type/status/date range, you MUST call format_payments_report (compute dates with date tools if needed; do not aggregate only from raw list_payments). After the tool returns, your final message MUST include a fenced code block with language tag payments_report whose body is that tool's JSON.
+- You may add a short intro and may also include a chart fenced block in addition to the required structured fence. Do not invent totals outside the tool JSON.
+- For RAG and other non-summary questions, ignore this section and answer normally.`;
+  }
+
+  return `<structured_summaries>
+This mode is ON for this turn. It applies to (1) wallet balance / wallet summary requests and (2) payment report / payment summary requests (counts or breakdowns by type, status, or date range). It does NOT apply to knowledge-base / RAG answers (search_knowledge_base).
+- For wallet balance or wallet summary requests, you MUST call format_wallet_summary (do not use get_wallet alone for these). After the tool returns, your final message MUST include a fenced code block with language tag wallet_summary whose body is that tool's JSON.
+- For payment reports or summaries by type/status/date range, you MUST call format_payments_report (compute dates with date tools if needed; do not aggregate only from raw list_payments). After the tool returns, your final message MUST include a fenced code block with language tag payments_report whose body is that tool's JSON.
+- You may add a short intro and may also include a chart fenced block in addition to the required structured fence. Do not invent totals outside the tool JSON.
+- For RAG and other non-summary questions, ignore this section and answer normally.
+</structured_summaries>`;
+}
+
 export const IN_SCOPE_LABEL = 'IN_SCOPE';
 export const OUT_OF_SCOPE_LABEL = 'OUT_OF_SCOPE';
 

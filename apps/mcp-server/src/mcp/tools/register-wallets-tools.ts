@@ -3,6 +3,95 @@ import { z } from 'zod';
 import { WalletWalletsService } from '../api/wallet-wallets.service';
 import { jsonResult, toolError } from './tool-helpers';
 
+export type WalletSummary = {
+  userId: string;
+  merchantId: string;
+  credits: number | null;
+  currency: string;
+  fetchedAt: string;
+  ok: boolean;
+  error?: string;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return undefined;
+}
+
+function pickNumber(
+  record: Record<string, unknown> | undefined,
+  keys: string[],
+): number | null {
+  if (!record) {
+    return null;
+  }
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+function pickString(
+  record: Record<string, unknown> | undefined,
+  keys: string[],
+): string | undefined {
+  if (!record) {
+    return undefined;
+  }
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Map opaque Wallet API payloads into a stable summary schema for demos.
+ * Not used for RAG / knowledge-base answers.
+ */
+export function buildWalletSummary(
+  userId: string,
+  merchantId: string,
+  raw: unknown,
+): WalletSummary {
+  const root = asRecord(raw);
+  const nested =
+    asRecord(root?.data) ??
+    asRecord(root?.wallet) ??
+    asRecord(root?.result) ??
+    root;
+
+  return {
+    userId,
+    merchantId,
+    credits: pickNumber(nested, [
+      'credits',
+      'Credits',
+      'balance',
+      'Balance',
+      'amount',
+      'Amount',
+    ]),
+    currency:
+      pickString(nested, ['currency', 'Currency', 'unit', 'Unit']) ?? 'credits',
+    fetchedAt: new Date().toISOString(),
+    ok: true,
+  };
+}
+
 export function registerWalletsTools(
   server: McpServer,
   walletsService: WalletWalletsService,
@@ -53,6 +142,41 @@ export function registerWalletsTools(
         return jsonResult(result);
       } catch (error) {
         return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    'format_wallet_summary',
+    {
+      description:
+        'Return a fixed-schema JSON summary of a user wallet (userId, merchantId, credits, currency, fetchedAt). Prefer this over get_wallet when the user wants a structured wallet summary. Not for knowledge-base / RAG answers.',
+      inputSchema: {
+        userId: z.string().describe('User ID associated with the wallet.'),
+        merchantId: z.string().describe('Merchant identifier.'),
+      },
+    },
+    async (args) => {
+      console.log('[MCP] tools/call: format_wallet_summary', args);
+      try {
+        const raw = await walletsService.getWallet(
+          args.userId,
+          args.merchantId,
+        );
+        return jsonResult(
+          buildWalletSummary(args.userId, args.merchantId, raw),
+        );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return jsonResult({
+          userId: args.userId,
+          merchantId: args.merchantId,
+          credits: null,
+          currency: 'credits',
+          fetchedAt: new Date().toISOString(),
+          ok: false,
+          error: message,
+        } satisfies WalletSummary);
       }
     },
   );

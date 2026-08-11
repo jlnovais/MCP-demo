@@ -1,0 +1,48 @@
+.wallet-summary-block {
+  margin: 8px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  max-width: 420px;
+}
+
+.wallet-summary-block.is-error {
+  border-color: var(--danger);
+}
+
+.wallet-summary-header {
+  margin-bottom: 10px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.wallet-summary-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wallet-summary-row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.wallet-summary-row dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+
+.wallet-summary-row dd {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  word-break: break-word;
+}

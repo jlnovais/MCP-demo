@@ -15,6 +15,8 @@ type ChatInputAreaProps = {
   samplingPresets: SamplingPresetInfo[];
   samplingPreset: SamplingPresetId;
   onSamplingPresetChange: (preset: SamplingPresetId) => void;
+  structuredStrict: boolean;
+  onStructuredStrictChange: (enabled: boolean) => void;
   onSend: (message: string) => void;
 };
 
@@ -25,6 +27,8 @@ export function ChatInputArea({
   samplingPresets,
   samplingPreset,
   onSamplingPresetChange,
+  structuredStrict,
+  onStructuredStrictChange,
   onSend,
 }: ChatInputAreaProps) {
   const [input, setInput] = useState('');
@@ -151,6 +155,23 @@ export function ChatInputArea({
                 })}
               </div>
             ) : null}
+            <button
+              type="button"
+              className={`structured-strict-btn${structuredStrict ? ' is-on' : ''}`}
+              aria-pressed={structuredStrict}
+              disabled={isStreaming}
+              title={
+                structuredStrict
+                  ? 'Structured ON — wallet summaries + payment reports use fixed JSON tools (not for RAG)'
+                  : 'Structured OFF — free-form summaries OK; RAG unchanged'
+              }
+              onClick={() => onStructuredStrictChange(!structuredStrict)}
+            >
+              <span>Structured</span>
+              <span className="structured-strict-state">
+                {structuredStrict ? 'On' : 'Off'}
+              </span>
+            </button>
             {activePreset ? (
               <span className="sampling-preset-hint">{activePreset.hint}</span>
             ) : null}
@@ -164,6 +185,7 @@ export function ChatInputArea({
         {samplingPresets.length > 0
           ? ' · Precise / Creative / Think hard to compare sampling'
           : ''}
+        {' · Structured forces wallet/payment summary JSON (not RAG)'}
       </p>
     </div>
   );

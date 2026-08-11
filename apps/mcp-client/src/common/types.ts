@@ -33,6 +33,8 @@ export type AppContext = {
   prompts: PromptInfo[];
   resources: McpResourceSummary[];
   systemPrompt: string;
+  /** Format used to build systemPrompt; needed for per-turn strict appendix. */
+  systemPromptFormat: 'xml' | 'markdown';
   classifierPrompt: string;
   classifierModel: string;
   classifierEnabled: boolean;
@@ -40,6 +42,11 @@ export type AppContext = {
   promptCacheEnabled: boolean;
   /** Anthropic prompt-cache TTL: `5m` (default) or `1h`. */
   promptCacheTtl: '5m' | '1h';
+  /**
+   * Default for Strict structured wallet + payment summaries
+   * (env STRUCTURED_OUTPUT_STRICT). Does not apply to RAG / knowledge-base answers.
+   */
+  structuredOutputStrictDefault: boolean;
 };
 
 export type PromptCacheStats = {
@@ -96,4 +103,6 @@ export type ServerConfig = {
   promptCacheTtl: '5m' | '1h';
   samplingPresets: SamplingPresetInfo[];
   defaultSamplingPreset: SamplingPresetId;
+  /** Env default for Structured (strict) wallet + payment summaries — not for RAG. */
+  structuredOutputStrictDefault: boolean;
 };
