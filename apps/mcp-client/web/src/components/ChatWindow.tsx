@@ -19,6 +19,8 @@ type ChatWindowProps = {
   samplingPresets: SamplingPresetInfo[];
   samplingPreset: SamplingPresetId;
   onSamplingPresetChange: (preset: SamplingPresetId) => void;
+  structuredStrict: boolean;
+  onStructuredStrictChange: (enabled: boolean) => void;
   onSend: (message: string) => void;
 };
 
@@ -33,6 +35,8 @@ export function ChatWindow({
   samplingPresets,
   samplingPreset,
   onSamplingPresetChange,
+  structuredStrict,
+  onStructuredStrictChange,
   onSend,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -61,6 +65,8 @@ export function ChatWindow({
         samplingPresets={samplingPresets}
         samplingPreset={samplingPreset}
         onSamplingPresetChange={onSamplingPresetChange}
+        structuredStrict={structuredStrict}
+        onStructuredStrictChange={onStructuredStrictChange}
         onSend={onSend}
       />
     </div>

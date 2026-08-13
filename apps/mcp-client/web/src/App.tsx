@@ -53,6 +53,9 @@ export function App() {
   const [presetBySession, setPresetBySession] = useState<
     Record<string, SamplingPresetId>
   >({});
+  const [structuredBySession, setStructuredBySession] = useState<
+    Record<string, boolean>
+  >({});
 
   const defaultPreset: SamplingPresetId =
     config?.defaultSamplingPreset ?? 'precise';
@@ -63,6 +66,12 @@ export function App() {
     ? (presetBySession[activeSessionId] ?? defaultPreset)
     : defaultPreset;
 
+  const structuredStrictDefault =
+    config?.structuredOutputStrictDefault ?? false;
+  const structuredStrict = activeSessionId
+    ? (structuredBySession[activeSessionId] ?? structuredStrictDefault)
+    : structuredStrictDefault;
+
   const setSamplingPreset = (preset: SamplingPresetId) => {
     if (!activeSessionId) {
       return;
@@ -70,6 +79,16 @@ export function App() {
     setPresetBySession((current) => ({
       ...current,
       [activeSessionId]: preset,
+    }));
+  };
+
+  const setStructuredStrict = (enabled: boolean) => {
+    if (!activeSessionId) {
+      return;
+    }
+    setStructuredBySession((current) => ({
+      ...current,
+      [activeSessionId]: enabled,
     }));
   };
 
@@ -218,7 +237,11 @@ export function App() {
             }),
           );
         },
-        { thinking: samplingPreset === 'think_hard', preset: samplingPreset },
+        {
+          thinking: samplingPreset === 'think_hard',
+          preset: samplingPreset,
+          structuredStrict,
+        },
       );
 
       const list = await loadSessions();
@@ -279,6 +302,8 @@ export function App() {
             samplingPresets={samplingPresets}
             samplingPreset={samplingPreset}
             onSamplingPresetChange={setSamplingPreset}
+            structuredStrict={structuredStrict}
+            onStructuredStrictChange={setStructuredStrict}
             onSend={(text) => void handleSend(text)}
           />
         ) : (

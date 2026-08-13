@@ -14,7 +14,7 @@ Here’s how those course topics map onto **this MCP-demo repo** (NestJS MCP ser
 | System prompts | `system-prompt.ts` (`buildSystemPrompt`, scope policy, examples) |
 | Temperature | Env + web presets (`Precise` / `Creative` / `Think hard`) via `claude-sampling.ts` |
 | Response streaming | `stream: true` + SSE to the web UI |
-| Structured data (partial) | Chart JSON contract in the system prompt + `ChartBlock`; Zod schemas on MCP tools; classifier forced to one label |
+| Structured data | Charts + `format_wallet_summary` / `format_payments_report` + Structured toggle (wallet + payment reports; **not RAG**); Zod on MCP tools; classifier label |
 
 ### Prompt engineering techniques
 Used in the live system prompt (not as a separate “course module”):
@@ -91,7 +91,7 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 5. **Alternate chunkers** ✅ — per-type `CHUNKER_*`, `compare:chunkers`, unit tests  
 6. **Prompt eval harness** — golden Q&A for scope classifier + “did RAG cite the right source?” (code + model grading)  
 7. **XML-structured system prompts** ✅ — `SYSTEM_PROMPT_FORMAT=xml|markdown`  
-8. **Richer structured outputs** 🟡 — chart fenced blocks done; forced answer schemas still open  
+8. **Richer structured outputs** ✅ — charts + wallet/payment report tools + Structured UI/env (**not for RAG**)  
 9. **Temperature / thinking comparison** ✅ — Precise / Creative / Think hard presets in the web UI  
 10. **Explicit workflows** 🟡 — chaining prompts done (`create_and_verify_mbway_payment`, `cancel_payment_workflow`); single-step create prompts (`create_mb_payment`, `create_mbway_payment`); routing/parallel still open
 
@@ -113,7 +113,7 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 
 | Section | Mostly here? | Best next demos |
 | --- | --- | --- |
-| Accessing Claude API | Yes | Structured outputs |
+| Accessing Claude API | Yes | — |
 | Prompt evaluation | No | Scope + RAG eval suite |
 | Prompt engineering | Yes (XML + markdown) | Optional A/B of formats; eval harness |
 | Tool use | Yes (custom MCP) | `tool_choice`, built-in Anthropic tools |
@@ -123,7 +123,7 @@ These fit the existing Wallet + MCP + RAG stack without forcing a new product:
 | Anthropic apps | Docs only | Claude Code wiring |
 | Agents / workflows | Partial (agentic loop + chaining prompts) | Clearer routing + parallel demos |
 
-**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/resources/client + agentic RAG (multi-chunker) + extended thinking + sampling presets + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF).
+**Bottom line:** the project already is a strong demo of **Claude API + streaming + system prompts (XML/markdown) + multi-turn tool use + MCP tools/prompts/resources/client + agentic RAG (multi-chunker) + extended thinking + sampling presets + structured wallet summaries + prompt caching**. The biggest gaps that still fit cleanly as demos are **prompt evals**, **hybrid/multi-index RAG**, and a few **Claude features** (images, citations, native PDF).
 
 ---
 
@@ -206,16 +206,41 @@ Print pass rate. Turns “prompt engineering” into something you can measure w
 
 ---
 
-### 8. Richer structured outputs 🟡 — Partially implemented
-**What it is:** Force the model to return data in a fixed schema (JSON), not free prose.
+### 8. Richer structured outputs ✅ — Already implemented (wallet + payment reports; not RAG)
+**What it is:** Force (or opt into) a fixed JSON schema for answers, not free prose.
 
-**Today:** Soft structure — chart fenced blocks (`\`\`\`chart` + JSON) rendered by `ChartBlock`, plus Zod on **tool inputs**. No hard “always return this JSON schema” path for answers.
+**Today:**
+- Soft charts: `chart` fenced blocks + `ChartBlock`
+- Opt-in MCP tool `format_wallet_summary` → fixed `{ userId, merchantId, credits, currency, fetchedAt, ok, error? }`
+- Opt-in MCP tool `format_payments_report` → fixed aggregation `{ totalCount, byType[], byStatus[], amountTotal, creditsTotal, … }` over a date range (pages `list_payments`)
+- Strict mode: env `STRUCTURED_OUTPUT_STRICT` (default false) + web **Structured** On/Off toggle; when on:
+  - wallet balance/summary → must call `format_wallet_summary` + `wallet_summary` fence (`WalletSummaryBlock`)
+  - payment reports / summaries by type/status/date → must call `format_payments_report` + `payments_report` fence (`PaymentsReportBlock`); chart still allowed as a companion
 
-**Demo:** e.g. a `format_wallet_summary` tool or a post-step that requires `{ balance, currency, userId, … }`, or stricter chart validation. Shows “structured data” as a first-class API pattern, not only UI convenience.
+**Not for RAG (by design, for now):** This feature does **not** apply to knowledge-base / `search_knowledge_base` answers. RAG remains free-form prose grounded in retrieved chunks. Structured mode is for **wallet summaries and payment reports** only.
 
-**Already / not yet:**
-- ✅ Done: chart JSON contract in the system prompt; web UI parses `chart` fenced blocks and renders them (`ChartBlock` / `MarkdownContent`); Zod schemas on MCP tool inputs
-- ⏳ Still open: forced answer schemas (e.g. wallet summary JSON), dedicated structured-output tool, or stricter validation / rejection of invalid chart payloads
+**Why not RAG now**
+- The current demo teaches a clear pattern: **API/tool → fixed schema** (ledger-style data). Mixing that with “answer + citations” would blur the lesson.
+- Wallet/payment reports have small, stable field sets. RAG answers vary by question; a useful schema needs `answer`, `sources[]`, maybe confidence — different product surface.
+- Soft citations already exist (tool hits include `source`; the system prompt asks Claude to cite). Forcing JSON for every knowledge question would hurt normal chat UX unless we add a separate RAG-strict mode.
+- A RAG structured path overlaps with later demos: **#6 prompt eval** (grade sources) and **#11 Citations API**.
+
+**What you’d need to implement structured RAG later**
+1. A schema, e.g. `{ answer, sources: [{ file, excerpt?, score? }], confidence? }` — either a dedicated tool that wraps search + formats, or a `rag_answer` fenced block contract in the system prompt.
+2. A separate control (env/UI), e.g. `STRUCTURED_RAG_STRICT`, so wallet/payment Structured and RAG Structured don’t collide.
+3. UI to render sources (clickable doc names / excerpts), similar to `WalletSummaryBlock` / `PaymentsReportBlock`.
+4. Optional: feed into **#6** (assert expected sources) or **#11** (Anthropic Citations API) instead of a homemade fence.
+
+**Real-world scenarios where structured RAG shines**
+- Support / helpdesk UIs that show the answer beside “see also” document links  
+- Compliance / audit trails that must record which docs grounded a reply  
+- Downstream bots (Slack, tickets, CRM) that parse JSON instead of scraping prose  
+- Automated eval (“did we cite `wallet-faq.md`?”) when changing prompts or chunkers  
+
+**Demo (done):**
+- Structured On → wallet summary with `userId` + `merchantId` → `format_wallet_summary` + summary card  
+- Structured On → “sumário dos pedidos… por tipo… últimos 3 meses” → `format_payments_report` + payments report card (optional chart)  
+- Structured Off / RAG questions → free-form (or chart) as before
 
 ---
 
@@ -260,7 +285,7 @@ Frames “agent vs workflow” using tools you already have.
 | 8–9 | Claude API control | `chat-engine` / web UI |
 | 10 | Agents vs workflows | Classifier + tool loop |
 
-**Short path status:** **#1**, **#2**, **#5**, **#7**, and **#9** are done. Next high-value gaps: **#3/#6** hybrid search or eval harness, fuller **#8** (forced structured output).
+**Short path status:** **#1**, **#2**, **#5**, **#7**, **#8**, and **#9** are done. Next high-value gaps: **#3/#6** hybrid search or eval harness.
 
 ---
 
@@ -276,8 +301,8 @@ Status check against the high-fit demos and related work found in the repo (comm
 | **2** | Prompts in the client | **Done** | Web `PromptPicker` + `/api/prompts` / `/api/prompts/get`; CLI `/prompts` and `/prompt <name>`. Commit `3eca3fe`. |
 | **7** | XML-structured system prompts | **Done** | `BASE_POLICY_XML` with `<scope>`, `<rules>`, `<examples>`, etc.; `SYSTEM_PROMPT_FORMAT=xml\|markdown` (xml default). In `system-prompt.ts` + `.env.template`. |
 | **5** | Alternate chunkers | **Done** | Per-type `CHUNKER_*` + `html` (`HTMLNodeParser`); `compare:chunkers`; `chunker.ts`; unit tests in `test/mcp-server/knowledge/chunker.spec.ts`. |
+| **8** | Richer structured outputs | **Done** | Charts + `format_wallet_summary` + `format_payments_report` + `STRUCTURED_OUTPUT_STRICT` / web Structured toggle + `wallet_summary` / `payments_report` UI. **Not used for RAG**. |
 | **9** | Temperature / thinking comparison | **Done** | Web presets Precise / Creative / Think hard (`preset` → `resolveTurnSampling` → `streamChatTurn`). Thinking budget from `CLAUDE_THINKING_BUDGET`. CLI remains env-based. |
-| **8** | Richer structured outputs | **Partially done** | Chart fenced blocks (`chart` language tag + JSON) rendered by `ChartBlock` / `MarkdownContent`. Commit `e9200de`. Still soft (prompt contract), not a forced JSON-schema / dedicated summary tool. |
 
 ### High-fit demos — still open
 
@@ -300,4 +325,4 @@ Status check against the high-fit demos and related work found in the repo (comm
 
 ### Updated short path
 
-Of the earlier “short path” suggestions, **#1 (resources)**, **#2 (prompts in client)**, **#5 (chunkers)**, **#7 (XML prompts)**, and **#9 (sampling presets)** are already in place. Remaining high-value gaps that still fit cleanly: **#3/#6** hybrid search or eval harness, and fuller **#8** (forced structured output).
+Of the earlier “short path” suggestions, **#1 (resources)**, **#2 (prompts in client)**, **#5 (chunkers)**, **#7 (XML prompts)**, **#8 (structured wallet + payment reports)**, and **#9 (sampling presets)** are already in place. Remaining high-value gaps that still fit cleanly: **#3/#6** hybrid search or eval harness.

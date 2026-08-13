@@ -66,6 +66,18 @@ function parseSamplingPreset(body: unknown): SamplingPresetId | undefined {
   return isSamplingPresetId(body.preset) ? body.preset : undefined;
 }
 
+function parseStructuredStrict(body: unknown): boolean | undefined {
+  if (
+    typeof body === 'object' &&
+    body !== null &&
+    'structuredStrict' in body &&
+    typeof body.structuredStrict === 'boolean'
+  ) {
+    return body.structuredStrict;
+  }
+  return undefined;
+}
+
 function parsePromptGetBody(
   body: unknown,
 ): { name: string; arguments: Record<string, string> } | undefined {
@@ -167,6 +179,7 @@ const serverConfig: ServerConfig = {
   promptCacheTtl,
   samplingPresets: listSamplingPresets(),
   defaultSamplingPreset: DEFAULT_SAMPLING_PRESET,
+  structuredOutputStrictDefault: appContext.structuredOutputStrictDefault,
 };
 
 console.log(`MCP web client running on http://localhost:${port}`);
@@ -290,6 +303,7 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
 
   const thinkingEnabled = parseThinkingEnabled(req.body);
   const preset = parseSamplingPreset(req.body);
+  const structuredStrict = parseStructuredStrict(req.body);
 
   sessions.touch(sessionId, message);
 
@@ -306,6 +320,7 @@ app.post('/api/sessions/:id/chat', async (req, res) => {
     await streamChatTurn(appContext, messages, message, send, {
       ...(preset !== undefined ? { preset } : {}),
       ...(thinkingEnabled !== undefined ? { thinkingEnabled } : {}),
+      ...(structuredStrict !== undefined ? { structuredStrict } : {}),
     });
   } catch (error) {
     messages.pop();

@@ -5,6 +5,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages';
 import { randomUUID } from 'node:crypto';
 import { OUT_OF_SCOPE_LABEL, REFUSAL_MESSAGE } from './system-prompt.js';
+import { buildStructuredOutputStrictAppendix } from './system-prompt.js';
 import type {
   AppContext,
   ChatStreamEvent,
@@ -79,11 +80,13 @@ type ChatEngineContext = Pick<
   | 'thinkingBudget'
   | 'samplingParams'
   | 'systemPrompt'
+  | 'systemPromptFormat'
   | 'classifierPrompt'
   | 'classifierModel'
   | 'classifierEnabled'
   | 'promptCacheEnabled'
   | 'promptCacheTtl'
+  | 'structuredOutputStrictDefault'
 >;
 
 function stringifyToolResultContent(
@@ -209,6 +212,11 @@ export type StreamChatTurnOptions = {
   preset?: SamplingPresetId;
   /** When set (and no preset), overrides env-based thinking for this turn. */
   thinkingEnabled?: boolean;
+  /**
+   * When set, overrides STRUCTURED_OUTPUT_STRICT for this turn.
+   * Strict mode is for wallet and payment summaries only — not RAG.
+   */
+  structuredStrict?: boolean;
 };
 
 const DEFAULT_THINKING_BUDGET = 1024;
@@ -254,10 +262,16 @@ export async function streamChatTurn(
     ? { type: 'enabled' as const, budget_tokens: thinkingBudget }
     : undefined;
 
+  const structuredStrict =
+    options?.structuredStrict ?? ctx.structuredOutputStrictDefault;
+  const systemPrompt = structuredStrict
+    ? `${ctx.systemPrompt}\n\n${buildStructuredOutputStrictAppendix(ctx.systemPromptFormat)}`
+    : ctx.systemPrompt;
+
   const runner = ctx.anthropic.beta.messages.toolRunner({
     model: ctx.model,
     max_tokens: ctx.maxTokens,
-    system: ctx.systemPrompt,
+    system: systemPrompt,
     messages,
     tools: ctx.claudeTools,
     stream: true,

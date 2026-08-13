@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { WalletPaymentsService } from '../api/wallet-payments.service';
+import { buildPaymentsReport } from './payments-report';
 import { jsonResult, toolError } from './tool-helpers';
 
 const paymentTypeSchema = z.enum(['MB', 'MBWAY', 'CARD']);
@@ -161,6 +162,44 @@ export function registerPaymentsTools(
       } catch (error) {
         return toolError(error);
       }
+    },
+  );
+
+  server.registerTool(
+    'format_payments_report',
+    {
+      description:
+        'Return a fixed-schema JSON report of payment requests aggregated by type and status over a date range (counts, amount/credits totals). Prefer this over raw list_payments when the user wants a payment summary or breakdown. Pages through the Wallet API. Not for knowledge-base / RAG answers.',
+      inputSchema: {
+        requestDateStart: z
+          .string()
+          .describe('Start of the request-date range (inclusive).'),
+        requestDateEnd: z
+          .string()
+          .describe('End of the request-date range (inclusive).'),
+        merchantId: z
+          .string()
+          .optional()
+          .describe(
+            'Merchant identifier. Pass empty string (or omit) for admin “all merchants”.',
+          ),
+        userId: z
+          .string()
+          .optional()
+          .describe(
+            'Filter by user ID. Pass empty string (or omit) for all users.',
+          ),
+      },
+    },
+    async (args) => {
+      console.log('[MCP] tools/call: format_payments_report', args);
+      const report = await buildPaymentsReport(paymentsService, {
+        requestDateStart: args.requestDateStart,
+        requestDateEnd: args.requestDateEnd,
+        merchantId: args.merchantId ?? '',
+        userId: args.userId ?? '',
+      });
+      return jsonResult(report);
     },
   );
 

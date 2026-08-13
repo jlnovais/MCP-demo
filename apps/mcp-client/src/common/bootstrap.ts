@@ -116,6 +116,12 @@ export async function bootstrap(
   const classifierEnabled =
     (process.env.SCOPE_CLASSIFIER_ENABLED ?? 'true').trim().toLowerCase() !==
     'false';
+  const structuredOutputStrictDefault =
+    (process.env.STRUCTURED_OUTPUT_STRICT ?? 'false').trim().toLowerCase() ===
+    'true';
+  console.log(
+    `Structured summaries (strict default): ${structuredOutputStrictDefault ? 'on' : 'off'} (wallet + payments; not for RAG)`,
+  );
 
   return {
     anthropic,
@@ -130,11 +136,13 @@ export async function bootstrap(
     prompts,
     resources,
     systemPrompt,
+    systemPromptFormat,
     classifierPrompt,
     classifierModel,
     classifierEnabled,
     mcpConnected,
     promptCacheEnabled,
     promptCacheTtl,
+    structuredOutputStrictDefault,
   };
 }

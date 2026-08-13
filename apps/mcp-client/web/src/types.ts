@@ -83,4 +83,6 @@ export type ServerConfig = {
   promptCacheTtl: '5m' | '1h';
   samplingPresets: SamplingPresetInfo[];
   defaultSamplingPreset: SamplingPresetId;
+  /** Env default for Structured (strict) wallet + payment summaries — not for RAG. */
+  structuredOutputStrictDefault: boolean;
 };

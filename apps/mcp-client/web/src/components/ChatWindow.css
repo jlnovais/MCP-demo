@@ -126,6 +126,50 @@
   line-height: 1.3;
 }
 
+.structured-strict-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s;
+}
+
+.structured-strict-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-soft);
+}
+
+.structured-strict-btn.is-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.structured-strict-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.structured-strict-state {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.structured-strict-btn.is-on .structured-strict-state {
+  color: var(--accent-hover);
+}
+
 .send-btn {
   flex-shrink: 0;
   height: 52px;
